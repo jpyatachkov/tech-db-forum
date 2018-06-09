@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicInteger
 @Component
 class ForumDAO(private val userDAO: UserDAO, private val jdbcTemplate: JdbcTemplate) {
 
-    private val forumsCount: AtomicInteger = countForums();
+    public var forumsCount: AtomicInteger = countForums();
 
     @Suppress("PropertyName")
     internal val FORUM_ROW_MAPPER = { res: ResultSet, _: Any ->
@@ -57,6 +57,7 @@ class ForumDAO(private val userDAO: UserDAO, private val jdbcTemplate: JdbcTempl
         );
 
         forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId);
+        forumsCount.incrementAndGet();
         return forum;
     }
 

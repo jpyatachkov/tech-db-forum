@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicInteger
 @Component
 class UserDAO(private val jdbcTemplate: JdbcTemplate) {
 
-    private val usersCount: AtomicInteger = countUsers();
+    public var usersCount: AtomicInteger = countUsers();
 
     @Suppress("PropertyName")
     internal val USER_ROW_MAPPER = { res: ResultSet, _: Any ->
@@ -76,11 +76,13 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
 
     fun create(createRequest: UsersController.UserCreateRequest): User? {
         val query = UserDAOHelper.CREATE_USER_QUERY;
-        return jdbcTemplate.queryForObject(
+        val user = jdbcTemplate.queryForObject(
                 query,
                 arrayOf(createRequest.nickname, createRequest.email, createRequest.fullname, createRequest.about),
                 USER_ROW_MAPPER
         );
+        usersCount.incrementAndGet();
+        return user;
     }
 
     fun update(updateRequest: UsersController.UserUpdateRequest): User? {
