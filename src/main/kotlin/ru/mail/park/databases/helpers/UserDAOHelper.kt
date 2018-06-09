@@ -16,6 +16,16 @@ object UserDAOHelper {
             "FROM users " +
             "WHERE nickname = ?::citext OR email = ?::citext";
 
+    const val GET_ID_BY_NICKNAME_QUERY = "" +
+            "SELECT id " +
+            "FROM users " +
+            "WHERE nickname = ?::citext"
+
+    const val GET_NICKNAME_BY_ID_QUERY = "" +
+            "SELECT nickname " +
+            "FROM users " +
+            "WHERE id = ?"
+
     const val CREATE_USER_QUERY = "" +
             "INSERT INTO users (nickname, email, full_name, about) " +
             "VALUES (?, ?, ?, ?) " +
