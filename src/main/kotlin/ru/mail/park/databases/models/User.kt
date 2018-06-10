@@ -8,48 +8,32 @@ import javax.validation.constraints.NotNull
 
 @Suppress("MemberVisibilityCanBePrivate")
 @JsonInclude(JsonInclude.Include.NON_NULL)
-class User(@NotNull id: Int?, fullName: String, email: String, nickName: String, about: String) {
-
-    companion object {
-        const val PRIME = 31;
-    }
+class User(fullName: String, email: String) {
 
     @JsonIgnore
-    var id: Int? = id
+    var id: Int? = null
 
-    @get:JsonProperty
+    @get:JsonProperty(value = "about", required = false)
     @set:JsonProperty
-    var about: String? = about
+    var about: String? = null
+
+    @get:JsonProperty("nickname", required = false)
+    @set:JsonProperty("nickname", required = false)
+    var nickName: String? = null
 
     @NotBlank
     @get:JsonProperty
     @set:JsonProperty
-    var email: String? = email
+    var email: String = email
 
     @NotBlank
     @get:JsonProperty("fullname")
     @set:JsonProperty("fullname")
-    var fullName: String? = fullName
+    var fullName: String = fullName
 
-    @get:JsonProperty("nickname")
-    @set:JsonProperty("nickname")
-    var nickName: String? = nickName
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other == null || javaClass != other.javaClass) return false
-
-        val user = other as User?
-
-        if (id != null && id == user!!.id) return true
-        return nickName != null && nickName == user!!.nickName
-    }
-
-    override fun hashCode(): Int {
-        var result = if (fullName != null) fullName!!.hashCode() else 0
-        result = PRIME * result + if (email != null) email!!.hashCode() else 0
-        result = PRIME * result + if (nickName != null) nickName!!.hashCode() else 0
-        result = PRIME * result + if (about != null) about!!.hashCode() else 0
-        return result
+    constructor(id: Int?, about: String?, nickName: String?, fullName: String, email: String): this(fullName, email) {
+        this.id = id
+        this.about = about
+        this.nickName = nickName
     }
 }

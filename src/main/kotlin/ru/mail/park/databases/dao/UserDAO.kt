@@ -22,10 +22,10 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
     internal val USER_ROW_MAPPER = { res: ResultSet, _: Any ->
         User(
                 res.getInt("id"),
-                res.getString("full_name"),
-                res.getString("email"),
+                res.getString("about"),
                 res.getString("nickname"),
-                res.getString("about")
+                res.getString("full_name"),
+                res.getString("email")
         )
     }
 

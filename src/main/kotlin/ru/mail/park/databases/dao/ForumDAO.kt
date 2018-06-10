@@ -21,8 +21,8 @@ class ForumDAO(private val userDAO: UserDAO, private val jdbcTemplate: JdbcTempl
     internal val FORUM_ROW_MAPPER = { res: ResultSet, _: Any ->
         Forum(
                 res.getInt("id"),
-                res.getString("title"),
                 res.getString("slug"),
+                res.getString("title"),
                 res.getInt("threads_count"),
                 res.getInt("posts_count"),
                 res.getInt("author_id")
@@ -56,7 +56,7 @@ class ForumDAO(private val userDAO: UserDAO, private val jdbcTemplate: JdbcTempl
                 FORUM_ROW_MAPPER
         );
 
-        forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId);
+        forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId!!);
         forumsCount.incrementAndGet();
         return forum;
     }
@@ -66,7 +66,7 @@ class ForumDAO(private val userDAO: UserDAO, private val jdbcTemplate: JdbcTempl
             val query = ForumDAOHelper.GET_FORUM_BY_SLUG_QUERY;
             val forum = jdbcTemplate.queryForObject(query, arrayOf(slug), FORUM_ROW_MAPPER);
 
-            forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId);
+            forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId!!);
             forum;
         } catch (e: EmptyResultDataAccessException) {
             throw NotFoundException("Forum with slug $slug not found");

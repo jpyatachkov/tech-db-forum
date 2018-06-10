@@ -31,7 +31,7 @@ class ForumsController(private val forumDAO: ForumDAO, private val userDAO: User
             ResponseEntity.status(HttpStatus.CREATED).body(forum);
         } catch (e: DuplicateKeyException) {
             forum = forumDAO.getBySlug(forumRequest.slug);
-            forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId);
+            forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId!!);
             ResponseEntity.status(HttpStatus.CONFLICT).body(forum);
         }
     }
