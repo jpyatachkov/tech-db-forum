@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.GetMapping
 import ru.mail.park.databases.dao.ForumDAO
+import ru.mail.park.databases.dao.UserDAO
+import ru.mail.park.databases.dao.VoteDAO
 
 
 @RestController
@@ -22,7 +24,10 @@ import ru.mail.park.databases.dao.ForumDAO
         consumes = [MediaType.ALL_VALUE],
         produces = [MediaType.APPLICATION_JSON_UTF8_VALUE]
 )
-class ThreadsController(private val forumDAO: ForumDAO, private val threadDAO: ThreadDAO) {
+class ThreadsController(private val forumDAO: ForumDAO,
+                        private val threadDAO: ThreadDAO,
+                        private val userDAO: UserDAO,
+                        private val voteDAO: VoteDAO) {
 
     @PostMapping(path = ["{slugOrId}/create"])
     fun createPosts(@PathVariable slugOrId: String,
@@ -36,13 +41,29 @@ class ThreadsController(private val forumDAO: ForumDAO, private val threadDAO: T
     @GetMapping(path = ["{slugOrId}/details"])
     fun getDetails(@PathVariable slugOrId: String): ResponseEntity<*> {
         val thread = threadDAO.getBySlugOrId(slugOrId)
-        return ResponseEntity.status(HttpStatus.CREATED).body(thread)
+        thread?.authorNickname = userDAO.getNickNameById(thread?.authorId!!)
+        thread.forumSlug = forumDAO.getSlugById(thread.forumId!!)
+        return ResponseEntity.status(HttpStatus.OK).body(thread)
     }
 
     @PostMapping(path = ["{slugOrId}/details"])
     fun update(@PathVariable slugOrId: String, @RequestBody updateRequest: ThreadUpdateRequest): ResponseEntity<*> {
         updateRequest.slugOrId = slugOrId
         val thread = threadDAO.update(updateRequest)
+        return ResponseEntity.status(HttpStatus.OK).body(thread)
+    }
+
+    @PostMapping(path = ["{slugOrId}/vote"])
+    fun voteForThread(@PathVariable slugOrId: String,
+                      @RequestBody threadVoteRequest: ThreadVoteRequest): ResponseEntity<*> {
+        val threadId = threadDAO.getIdBySlugOrId(slugOrId)
+        val userId = userDAO.getIdByNickName(threadVoteRequest.nickname)
+
+        voteDAO.voteForThread(threadId!!, userId!!, threadVoteRequest.voice)
+
+        val thread = threadDAO.getById(threadId)
+        thread?.authorNickname = userDAO.getNickNameById(thread?.authorId!!)
+        thread.forumSlug = forumDAO.getSlugById(thread.forumId!!)
         return ResponseEntity.status(HttpStatus.OK).body(thread)
     }
 
@@ -57,6 +78,10 @@ class ThreadsController(private val forumDAO: ForumDAO, private val threadDAO: T
     constructor(@param:JsonProperty(value = "message") val message: String,
                 @param:JsonProperty(value = "title") val title: String,
                 @param:JsonProperty(value = "slug", required = false) var slugOrId: String?)
+
+    data class ThreadVoteRequest
+    constructor(@param:JsonProperty(value = "nickname") val nickname: String,
+                @param:JsonProperty(value = "voice") val voice: Int)
 
 //    @GetMapping(path = arrayOf("/{thread_slug_or_id}/posts"), consumes = arrayOf(MediaType.ALL_VALUE))
 //    fun postsFromThread(@PathVariable thread_slug_or_id: String,

@@ -8,22 +8,26 @@ import java.util.concurrent.atomic.AtomicInteger
 @Component
 class ServiceDAO(private val jdbcTemplate: JdbcTemplate,
                  private val forumDAO: ForumDAO,
+                 private val postDAO: PostDAO,
+                 private val threadDAO: ThreadDAO,
                  private val userDAO: UserDAO) {
 
     fun doClear() {
-        jdbcTemplate.update("TRUNCATE TABLE forums, posts, threads, users, votes");
+        jdbcTemplate.update("TRUNCATE TABLE forums, posts, threads, users, votes")
 
-        forumDAO.forumsCount = AtomicInteger(0);
-        userDAO.usersCount = AtomicInteger(0);
+        forumDAO.forumsCount = AtomicInteger(0)
+        postDAO.postsCount = AtomicInteger(0)
+        threadDAO.threadsCount = AtomicInteger(0)
+        userDAO.usersCount = AtomicInteger(0)
     }
 
     fun getStatus(): ServiceDetails {
         return ServiceDetails(
                 forumDAO.forumsCount.toInt(),
-                0,
-                0,
+                postDAO.postsCount.toInt(),
+                threadDAO.threadsCount.toInt(),
                 userDAO.usersCount.toInt()
-        );
+        )
     }
 
     class ServiceDetails(forumsCount: Int,
@@ -32,15 +36,15 @@ class ServiceDAO(private val jdbcTemplate: JdbcTemplate,
                          usersCount: Int) {
 
         @get:JsonProperty(value = "forum")
-        public val forumsCount: Int = forumsCount;
+        public val forumsCount: Int = forumsCount
 
         @get:JsonProperty(value = "post")
-        public val postsCount: Int = postsCount;
+        public val postsCount: Int = postsCount
 
         @get:JsonProperty(value = "thread")
-        public val threadsCount: Int = threadsCount;
+        public val threadsCount: Int = threadsCount
 
         @get:JsonProperty(value = "user")
-        public val usersCount: Int = usersCount;
+        public val usersCount: Int = usersCount
     }
 }

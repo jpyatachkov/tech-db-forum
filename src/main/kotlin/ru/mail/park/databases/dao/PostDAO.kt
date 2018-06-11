@@ -136,6 +136,7 @@ class PostDAO(private val dataSource: DataSource,
                     if (resultSet.next()) {
                         post.id = resultSet.getInt(1)
                     }
+                    postsCount.incrementAndGet()
                 }
             } finally {
                 pst.close()

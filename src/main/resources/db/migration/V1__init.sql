@@ -42,7 +42,7 @@ CREATE TABLE posts (
 
 CREATE TABLE votes (
   thread_id BIGINT   NOT NULL REFERENCES threads (id),
-  voice     SMALLINT NOT NULL,
+  voice     INT NOT NULL,
   user_id   BIGINT   NOT NULL REFERENCES users (id),
   UNIQUE (thread_id, user_id)
 );

@@ -46,6 +46,20 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
         }
     }
 
+    fun getById(id: Int): Thread? {
+        return try {
+            jdbcTemplate.queryForObject(
+                    "SELECT id, title, slug, message, votes, created_at, forum_id, author_id " +
+                            "FROM threads " +
+                            "WHERE id = ?",
+                    arrayOf(id),
+                    THREAD_ROW_MAPPER
+            )
+        } catch (e: EmptyResultDataAccessException) {
+            throw NotFoundException("Thread with id $id not found")
+        }
+    }
+
     fun getBySlugOrId(slugOrId: String): Thread? {
         return try {
             try {
@@ -63,6 +77,30 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
                                 "WHERE slug = ?::citext",
                         arrayOf(slugOrId),
                         THREAD_ROW_MAPPER
+                )
+            }
+        } catch (e: EmptyResultDataAccessException) {
+            throw NotFoundException("Thread with id or slug $slugOrId not found")
+        }
+    }
+
+    fun getIdBySlugOrId(slugOrId: String): Int? {
+        return try {
+            try {
+                jdbcTemplate.queryForObject(
+                        "SELECT id " +
+                                "FROM threads " +
+                                "WHERE id = ?",
+                        arrayOf(Integer.parseInt(slugOrId)),
+                        Int::class.java
+                )
+            } catch (e: NumberFormatException) {
+                jdbcTemplate.queryForObject(
+                        "SELECT id " +
+                                "FROM threads " +
+                                "WHERE slug = ?::citext",
+                        arrayOf(slugOrId),
+                        Int::class.java
                 )
             }
         } catch (e: EmptyResultDataAccessException) {
@@ -135,6 +173,7 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
         )
 
         created?.authorNickname = userDAO.getNickNameById(created?.authorId!!)
+        threadsCount.incrementAndGet()
         return created
     }
 
