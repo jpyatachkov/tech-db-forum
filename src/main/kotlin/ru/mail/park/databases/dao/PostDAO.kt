@@ -41,13 +41,15 @@ class PostDAO(private val dataSource: DataSource,
             ArrayList<Int>()
         }
 
+        val createdAt = res.getTimestamp("created_at")
+
         Post(
                 res.getInt("id"),
                 res.getBoolean("is_edited"),
                 res.getString("message"),
                 res.getInt("parent_id"),
                 children,
-                res.getString("created_at"),
+                if (createdAt != null) createdAt.toInstant().toString() else null,
                 res.getInt("author_id"),
                 res.getInt("thread_id"),
                 res.getInt("forum_id")

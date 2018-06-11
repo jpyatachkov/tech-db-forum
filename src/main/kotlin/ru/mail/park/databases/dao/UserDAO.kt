@@ -84,6 +84,19 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
         }
     }
 
+    fun getById(id: Int): User? {
+        return try {
+            jdbcTemplate.queryForObject(
+                    "SELECT id, nickname, email, full_name, about FROM users " +
+                            "WHERE id = ?",
+                    arrayOf(id),
+                    USER_ROW_MAPPER
+            )
+        } catch (e: EmptyResultDataAccessException) {
+            throw NotFoundException("User with id $id not found")
+        }
+    }
+
     fun create(createRequest: UsersController.UserCreateRequest): User? {
         val user = jdbcTemplate.queryForObject(
                 "INSERT INTO users (nickname, email, full_name, about) " +
