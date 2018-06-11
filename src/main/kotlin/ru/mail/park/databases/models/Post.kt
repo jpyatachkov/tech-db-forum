@@ -9,13 +9,16 @@ import kotlin.collections.ArrayList
 
 @Suppress("MemberVisibilityCanBePrivate")
 @JsonInclude(JsonInclude.Include.NON_NULL)
-class Post(authorNickname: String?, message: String, parentId: Int) {
+class Post(authorNickname: String?, message: String, parentId: Int, createdAt: String?) {
 
     @JsonIgnore
     var authorId: Int? = null
 
     @JsonIgnore
     var childrenIds: ArrayList<Int> = ArrayList<Int>();
+
+    @JsonIgnore
+    var forumId: Int? = null
 
     @get:JsonProperty
     @set:JsonProperty
@@ -33,30 +36,29 @@ class Post(authorNickname: String?, message: String, parentId: Int) {
     var id: Int? = null
 
     @get:JsonProperty
-    var isEdited: Boolean? = null
+    var isEdited: Boolean = false
 
     @get:JsonProperty(value = "created")
-    var createdAt: java.sql.Date? = null
+    var createdAt: String? = createdAt
 
     @get:JsonProperty(value = "thread")
     var threadId: Int? = null
 
     @get:JsonProperty(value = "forum")
-    var forumId: Int? = null
+    var forumSlug: String? = null
 
     constructor(id: Int?,
                 isEdited: Boolean,
                 message: String,
                 parentId: Int,
                 childrenIds: ArrayList<Int>,
-                createdAt: Date?,
+                createdAt: String?,
                 authorId: Int?,
                 threadId: Int?,
-                forumId: Int?) : this(null, message, parentId) {
+                forumId: Int?) : this(null, message, parentId, createdAt) {
         this.id = id
         this.isEdited = isEdited
         this.childrenIds = childrenIds
-        this.createdAt = createdAt
         this.authorId = authorId
         this.threadId = threadId
         this.forumId = forumId
@@ -87,7 +89,7 @@ class Post(authorNickname: String?, message: String, parentId: Int) {
         result = 31 * result + parentId
         result = 31 * result + (authorNickname?.hashCode() ?: 0)
         result = 31 * result + (id ?: 0)
-        result = 31 * result + (isEdited?.hashCode() ?: 0)
+        result = 31 * result + isEdited.hashCode()
         result = 31 * result + (createdAt?.hashCode() ?: 0)
         result = 31 * result + (threadId ?: 0)
         result = 31 * result + (forumId ?: 0)

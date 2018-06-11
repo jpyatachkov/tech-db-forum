@@ -13,7 +13,6 @@ import ru.mail.park.databases.dao.UserDAO
 import ru.mail.park.databases.helpers.ApiHelper
 import ru.mail.park.databases.models.Forum
 import ru.mail.park.databases.models.Thread
-import java.sql.Date
 
 
 @RestController
@@ -38,13 +37,15 @@ class ForumsController(private val forumDAO: ForumDAO, private val threadDAO: Th
 
     @PostMapping(path = ["{slug}/create"])
     fun createRelatedThread(@PathVariable slug: String,
-                            @RequestBody threadRequest: ThreadRequest): ResponseEntity<*> {
+                            @RequestBody threadRequest: ThreadsController.ThreadCreateRequest): ResponseEntity<*> {
         var thread: Thread?
         return try {
             thread = forumDAO.createRelatedThread(slug, threadRequest)
             ResponseEntity.status(HttpStatus.CREATED).body(thread)
         } catch (e: DuplicateKeyException) {
-            thread = threadDAO.getBySlugOrId(slug)
+            thread = threadDAO.getBySlugOrId(threadRequest.slug!!)
+            thread?.authorNickname = userDAO.getNickNameById(thread?.authorId!!)
+            thread.forumSlug = forumDAO.getSlugById(thread.forumId!!)
             ResponseEntity.status(HttpStatus.CONFLICT).body(thread)
         }
     }
@@ -80,11 +81,4 @@ class ForumsController(private val forumDAO: ForumDAO, private val threadDAO: Th
     constructor(@param:JsonProperty(value = "slug") val slug: String,
                 @param:JsonProperty(value = "title") val title: String,
                 @param:JsonProperty(value = "user") val user: String);
-
-    data class ThreadRequest @JsonCreator
-    constructor(@param:JsonProperty(value = "author") val authorNickname: String,
-                @param:JsonProperty(value = "message") val message: String,
-                @param:JsonProperty(value = "title") val title: String,
-                @param:JsonProperty(value = "slug", required = false) val slug: String?,
-                @param:JsonProperty(value = "created", required = false) val createdAt: String?)
 }

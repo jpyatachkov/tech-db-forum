@@ -5,13 +5,12 @@ import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
 import ru.mail.park.databases.controllers.ForumsController
+import ru.mail.park.databases.controllers.ThreadsController
 import ru.mail.park.databases.exceptions.NotFoundException
 import ru.mail.park.databases.models.Forum
 import ru.mail.park.databases.models.Thread
 import java.sql.ResultSet
-import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.math.sin
 
 @Component
 class ForumDAO(private val jdbcTemplate: JdbcTemplate, private val threadDAO: ThreadDAO, private val userDAO: UserDAO) {
@@ -88,7 +87,7 @@ class ForumDAO(private val jdbcTemplate: JdbcTemplate, private val threadDAO: Th
         return forum
     }
 
-    fun createRelatedThread(forumSlug: String, threadRequest: ForumsController.ThreadRequest): Thread? {
+    fun createRelatedThread(forumSlug: String, threadRequest: ThreadsController.ThreadCreateRequest): Thread? {
         val thread = Thread(threadRequest.authorNickname, threadRequest.message, threadRequest.title)
         thread.createdAt = threadRequest.createdAt
         thread.forumId = getIdBySlug(forumSlug)

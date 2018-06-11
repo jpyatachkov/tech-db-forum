@@ -20,7 +20,7 @@ CREATE TABLE forums (
 CREATE TABLE threads (
   id         BIGSERIAL PRIMARY KEY,
   title      TEXT   NOT NULL,
-  slug       CITEXT,
+  slug       CITEXT UNIQUE,
   message    TEXT   NOT NULL,
   votes      INTEGER        DEFAULT 0,
   created_at TIMESTAMPTZ(3) DEFAULT now(),

@@ -4,16 +4,20 @@ import org.springframework.dao.DataAccessException
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
+import ru.mail.park.databases.controllers.PostsController
+import ru.mail.park.databases.controllers.ThreadsController
 import ru.mail.park.databases.exceptions.NotFoundException
 import ru.mail.park.databases.helpers.DateTimeHelper
+import ru.mail.park.databases.models.Post
 import ru.mail.park.databases.models.Thread
-import java.sql.Date
 import java.sql.ResultSet
-import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.ArrayList
 
 @Component
-class ThreadDAO(private val jdbcTemplate: JdbcTemplate, private val userDAO: UserDAO) {
+class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
+                private val postDAO: PostDAO,
+                private val userDAO: UserDAO) {
 
     public var threadsCount: AtomicInteger = countThreads();
 
@@ -44,21 +48,23 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate, private val userDAO: Use
 
     fun getBySlugOrId(slugOrId: String): Thread? {
         return try {
-            jdbcTemplate.queryForObject(
-                    "SELECT id, title, slug, message, votes, created_at, forum_id, author_id " +
-                            "FROM threads " +
-                            "WHERE id = ?",
-                    arrayOf(Integer.parseInt(slugOrId)),
-                    THREAD_ROW_MAPPER
-            )
-        } catch (e: NumberFormatException) {
-            jdbcTemplate.queryForObject(
-                    "SELECT id, title, slug, message, votes, created_at, forum_id, author_id " +
-                            "FROM threads " +
-                            "WHERE slug = ?::citext",
-                    arrayOf(slugOrId),
-                    THREAD_ROW_MAPPER
-            )
+            try {
+                jdbcTemplate.queryForObject(
+                        "SELECT id, title, slug, message, votes, created_at, forum_id, author_id " +
+                                "FROM threads " +
+                                "WHERE id = ?",
+                        arrayOf(Integer.parseInt(slugOrId)),
+                        THREAD_ROW_MAPPER
+                )
+            } catch (e: NumberFormatException) {
+                jdbcTemplate.queryForObject(
+                        "SELECT id, title, slug, message, votes, created_at, forum_id, author_id " +
+                                "FROM threads " +
+                                "WHERE slug = ?::citext",
+                        arrayOf(slugOrId),
+                        THREAD_ROW_MAPPER
+                )
+            }
         } catch (e: EmptyResultDataAccessException) {
             throw NotFoundException("Thread with id or slug $slugOrId not found")
         }
@@ -130,5 +136,64 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate, private val userDAO: Use
 
         created?.authorNickname = userDAO.getNickNameById(created?.authorId!!)
         return created
+    }
+
+    fun createRelatedPosts(forumSlug: String, thread: Thread, postsCreateRequest: List<PostsController.PostCreateRequest>): List<Post> {
+        val posts = ArrayList<Post>()
+
+        for (postRequest in postsCreateRequest) {
+            val post = Post(
+                    postRequest.authorNickname,
+                    postRequest.message,
+                    postRequest.parentId ?: 0,
+                    postRequest.createdAt
+            )
+            post.forumId = thread.forumId
+            post.threadId = thread.id
+            post.forumSlug = forumSlug
+
+            posts.add(post)
+        }
+
+        return postDAO.createMultiple(posts)
+    }
+
+    fun update(updateRequest: ThreadsController.ThreadUpdateRequest): Thread? {
+        return try {
+            val created = try {
+                jdbcTemplate.queryForObject(
+                        "UPDATE threads" +
+                                "SET message = ?, " +
+                                "title = ? " +
+                                "WHERE id = ? " +
+                                "RETURNING id, title, slug, message, votes, created_at, forum_id, author_id",
+                        arrayOf(
+                                updateRequest.message,
+                                updateRequest.title,
+                                Integer.parseInt(updateRequest.slugOrId)
+                        ),
+                        THREAD_ROW_MAPPER
+                )
+            } catch (e: NumberFormatException) {
+                jdbcTemplate.queryForObject(
+                        "UPDATE threads" +
+                                "SET message = ?, " +
+                                "title = ? " +
+                                "WHERE slug = ?::citext " +
+                                "RETURNING id, title, slug, message, votes, created_at, forum_id, author_id",
+                        arrayOf(
+                                updateRequest.message,
+                                updateRequest.title,
+                                updateRequest.slugOrId
+                        ),
+                        THREAD_ROW_MAPPER
+                )
+            }
+
+            created?.authorNickname = userDAO.getNickNameById(created?.authorId!!)
+            created
+        } catch (e: EmptyResultDataAccessException) {
+            throw NotFoundException("Thread with slug or id ${updateRequest.slugOrId} not found")
+        }
     }
 }
