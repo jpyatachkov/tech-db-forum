@@ -37,7 +37,7 @@ class PostDAO(private val dataSource: DataSource,
         @Suppress("UNCHECKED_CAST")
         val children: ArrayList<Int> = try {
             ArrayList(Arrays.asList(*res.getArray("children_ids").array as Array<Int>))
-        } catch (e: NullPointerException) {
+        } catch (e: Exception) {
             ArrayList<Int>()
         }
 
@@ -66,7 +66,7 @@ class PostDAO(private val dataSource: DataSource,
     fun getById(id: Int): Post? {
         return try {
             jdbcTemplate.queryForObject(
-                    "SELECT id, slug, message, is_edited, created_at, parent_id, children_ids, author_id, forum_id, thread_id " +
+                    "SELECT id, message, is_edited, created_at, parent_id, children_ids, author_id, forum_id, thread_id " +
                             "FROM posts " +
                             "WHERE id = ?",
                     arrayOf(id),

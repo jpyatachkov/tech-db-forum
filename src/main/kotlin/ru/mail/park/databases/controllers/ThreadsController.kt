@@ -50,6 +50,8 @@ class ThreadsController(private val forumDAO: ForumDAO,
     fun update(@PathVariable slugOrId: String, @RequestBody updateRequest: ThreadUpdateRequest): ResponseEntity<*> {
         updateRequest.slugOrId = slugOrId
         val thread = threadDAO.update(updateRequest)
+        thread?.authorNickname = userDAO.getNickNameById(thread?.authorId!!)
+        thread.forumSlug = forumDAO.getSlugById(thread.forumId!!)
         return ResponseEntity.status(HttpStatus.OK).body(thread)
     }
 

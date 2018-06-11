@@ -113,6 +113,31 @@ class ForumDAO(private val jdbcTemplate: JdbcTemplate, private val threadDAO: Th
         }
     }
 
+    fun getBySlugWithCounters(slug: String): Forum? {
+        return try {
+            val forum = jdbcTemplate.queryForObject(
+                    "SELECT id, title, slug, threads_count, posts_count, author_id " +
+                            "FROM forums WHERE slug = ?::citext",
+                    arrayOf(slug),
+                    FORUM_ROW_MAPPER
+            )
+            forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId!!)
+            forum.threadsCount = jdbcTemplate.queryForObject(
+                    "SELECT count(*) FROM threads WHERE forum_id = ?",
+                    arrayOf(forum.id),
+                    Int::class.java
+            )
+            forum.postsCount = jdbcTemplate.queryForObject(
+                    "SELECT count(*) FROM posts WHERE forum_id = ?",
+                    arrayOf(forum.id),
+                    Int::class.java
+            )
+            forum
+        } catch (e: EmptyResultDataAccessException) {
+            throw NotFoundException("Forum with slug $slug not found")
+        }
+    }
+
     fun getRelatedThreads(slug: String, limit: Int?, since: String?, desc: Boolean?): List<Thread>? {
         val forumId = getIdBySlug(slug)
         return threadDAO.getByForumId(forumId!!, limit, since, desc)

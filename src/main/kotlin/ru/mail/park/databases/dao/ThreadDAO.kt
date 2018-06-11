@@ -201,7 +201,7 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
         return try {
             val created = try {
                 jdbcTemplate.queryForObject(
-                        "UPDATE threads" +
+                        "UPDATE threads " +
                                 "SET message = ?, " +
                                 "title = ? " +
                                 "WHERE id = ? " +
@@ -215,7 +215,7 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
                 )
             } catch (e: NumberFormatException) {
                 jdbcTemplate.queryForObject(
-                        "UPDATE threads" +
+                        "UPDATE threads " +
                                 "SET message = ?, " +
                                 "title = ? " +
                                 "WHERE slug = ?::citext " +

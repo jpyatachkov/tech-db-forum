@@ -52,7 +52,7 @@ class ForumsController(private val forumDAO: ForumDAO, private val threadDAO: Th
 
     @GetMapping(path = ["{slug}/details"])
     fun getForumDetails(@PathVariable slug: String): ResponseEntity<*> {
-        val forum = forumDAO.getBySlug(slug);
+        val forum = forumDAO.getBySlugWithCounters(slug);
         return ResponseEntity.ok(forum!!);
     }
 
