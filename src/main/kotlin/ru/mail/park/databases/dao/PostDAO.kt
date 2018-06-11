@@ -152,12 +152,26 @@ class PostDAO(private val dataSource: DataSource,
 
     fun update(postUpdateRequest: PostsController.PostUpdateRequest): Post? {
         return try {
-            val post = jdbcTemplate.queryForObject(
-                    "UPDATE posts SET message = ?, is_edited = true WHERE id = ? " +
-                            "RETURNING id, message, is_edited, created_at, parent_id, children_ids, author_id, forum_id, thread_id",
-                    arrayOf(postUpdateRequest.message, postUpdateRequest.id),
-                    POST_ROW_MAPPER
-            )
+            val post = if (postUpdateRequest.message != null) {
+                val oldPost = getById(postUpdateRequest.id)
+                if (oldPost?.message == postUpdateRequest.message) {
+                    oldPost
+                } else {
+                    jdbcTemplate.queryForObject(
+                            "UPDATE posts SET message = ?, is_edited = true WHERE id = ? " +
+                                    "RETURNING id, message, is_edited, created_at, parent_id, children_ids, author_id, forum_id, thread_id",
+                            arrayOf(postUpdateRequest.message, postUpdateRequest.id),
+                            POST_ROW_MAPPER
+                    )
+                }
+            } else {
+                jdbcTemplate.queryForObject(
+                        "UPDATE posts SET message = coalesce(?, message) WHERE id = ? " +
+                                "RETURNING id, message, is_edited, created_at, parent_id, children_ids, author_id, forum_id, thread_id",
+                        arrayOf(postUpdateRequest.message, postUpdateRequest.id),
+                        POST_ROW_MAPPER
+                )
+            }
             post?.authorNickname = userDAO.getNickNameById(post?.authorId!!)
             post
         } catch (e: EmptyResultDataAccessException) {

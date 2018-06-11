@@ -74,7 +74,7 @@ class PostsController(private val forumDAO: ForumDAO,
                 @param:JsonProperty(value = "parent", required = false) val parentId: Int?)
 
     data class PostUpdateRequest @JsonCreator
-    constructor(@param:JsonProperty(value = "message") val message: String,
+    constructor(@param:JsonProperty(value = "message", required = false) val message: String?,
                 @param:JsonProperty(value = "id", required = false) var id: Int)
 
     @Suppress("MemberVisibilityCanBePrivate")
