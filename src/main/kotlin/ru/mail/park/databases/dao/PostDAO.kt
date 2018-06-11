@@ -87,7 +87,13 @@ class PostDAO(private val dataSource: DataSource,
                 post.authorNickname = userDAO.getNickNameById(authorId!!)
 
                 if (post.parentId != 0) {
-                    val parent = getById(post.parentId)
+                    val parent: Post?;
+
+                    try {
+                        parent = getById(post.parentId)
+                    } catch (e: NotFoundException) {
+                        throw ConflictException("Вот тут нелогично ору как")
+                    }
 
                     if (parent?.threadId != post.threadId) {
                         throw InvalidRelation("Incorrect parent for post")
