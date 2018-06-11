@@ -30,7 +30,6 @@ CREATE TABLE threads (
 
 CREATE TABLE posts (
   id           BIGSERIAL PRIMARY KEY,
-  slug         CITEXT,
   message      TEXT    NOT NULL,
   is_edited    BOOLEAN NOT NULL DEFAULT FALSE,
   created_at   TIMESTAMPTZ,

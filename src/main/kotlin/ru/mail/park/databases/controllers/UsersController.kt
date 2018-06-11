@@ -33,7 +33,6 @@ class UsersController(private val userDAO: UserDAO) {
             user = userDAO.create(request);
             ResponseEntity.status(HttpStatus.CREATED).body(user);
         } catch (e: DuplicateKeyException) {
-            e.printStackTrace();
             val users = userDAO.getByNickNameOrEmail(nickname, request.email);
             ResponseEntity.status(HttpStatus.CONFLICT).body(users);
         }

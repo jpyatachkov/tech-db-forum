@@ -2,17 +2,18 @@ package ru.mail.park.databases.controllers
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
-import org.springframework.dao.DataAccessException
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
-import ru.mail.park.databases.exceptions.ApiException
 import ru.mail.park.databases.dao.ForumDAO
+import ru.mail.park.databases.dao.ThreadDAO
 import ru.mail.park.databases.dao.UserDAO
 import ru.mail.park.databases.helpers.ApiHelper
 import ru.mail.park.databases.models.Forum
+import ru.mail.park.databases.models.Thread
+import java.sql.Date
 
 
 @RestController
@@ -21,7 +22,7 @@ import ru.mail.park.databases.models.Forum
         consumes = [MediaType.ALL_VALUE],
         produces = [MediaType.APPLICATION_JSON_UTF8_VALUE]
 )
-class ForumsController(private val forumDAO: ForumDAO, private val userDAO: UserDAO) {
+class ForumsController(private val forumDAO: ForumDAO, private val threadDAO: ThreadDAO, private val userDAO: UserDAO) {
 
     @PostMapping(path = ["create"])
     fun createForum(@RequestBody forumRequest: ForumRequest): ResponseEntity<*> {
@@ -31,13 +32,21 @@ class ForumsController(private val forumDAO: ForumDAO, private val userDAO: User
             ResponseEntity.status(HttpStatus.CREATED).body(forum);
         } catch (e: DuplicateKeyException) {
             forum = forumDAO.getBySlug(forumRequest.slug);
-            forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId!!);
             ResponseEntity.status(HttpStatus.CONFLICT).body(forum);
         }
     }
 
-    fun createRelatedThread() {
-
+    @PostMapping(path = ["{slug}/create"])
+    fun createRelatedThread(@PathVariable slug: String,
+                            @RequestBody threadRequest: ThreadRequest): ResponseEntity<*> {
+        var thread: Thread?
+        return try {
+            thread = forumDAO.createRelatedThread(slug, threadRequest)
+            ResponseEntity.status(HttpStatus.CREATED).body(thread)
+        } catch (e: DuplicateKeyException) {
+            thread = threadDAO.getBySlugOrId(slug)
+            ResponseEntity.status(HttpStatus.CONFLICT).body(thread)
+        }
     }
 
     @GetMapping(path = ["{slug}/details"])
@@ -46,16 +55,36 @@ class ForumsController(private val forumDAO: ForumDAO, private val userDAO: User
         return ResponseEntity.ok(forum!!);
     }
 
-    fun getRelatedThreads() {
+    @GetMapping(path = ["{slug}/threads"])
+    fun getRelatedThreads(@PathVariable slug: String,
+                          @RequestParam(value = "limit", required = false) limit: Int?,
+                          @RequestParam(value = "since", required = false) since: String?,
+                          @RequestParam(value = "desc", required = false) desc: Boolean?): ResponseEntity<*> {
+        val threads = forumDAO.getRelatedThreads(slug, limit, since, desc)
 
+        val correctSlug = forumDAO.getSlugFromDBBySlug(slug)
+
+        if (threads != null) {
+            for (thread in threads) {
+                thread.forumSlug = correctSlug
+                thread.authorNickname = userDAO.getNickNameById(thread.authorId!!)
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.OK).body(threads)
     }
 
-    fun getRelatedUsers() {
-
-    }
+    // TODO: Get related users
 
     data class ForumRequest @JsonCreator
     constructor(@param:JsonProperty(value = "slug") val slug: String,
                 @param:JsonProperty(value = "title") val title: String,
                 @param:JsonProperty(value = "user") val user: String);
+
+    data class ThreadRequest @JsonCreator
+    constructor(@param:JsonProperty(value = "author") val authorNickname: String,
+                @param:JsonProperty(value = "message") val message: String,
+                @param:JsonProperty(value = "title") val title: String,
+                @param:JsonProperty(value = "slug", required = false) val slug: String?,
+                @param:JsonProperty(value = "created", required = false) val createdAt: String?)
 }

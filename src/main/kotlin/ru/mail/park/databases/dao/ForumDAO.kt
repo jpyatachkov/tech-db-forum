@@ -4,18 +4,19 @@ import org.springframework.dao.DataAccessException
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
-import ru.mail.park.databases.exceptions.ApiException
 import ru.mail.park.databases.controllers.ForumsController
 import ru.mail.park.databases.exceptions.NotFoundException
-import ru.mail.park.databases.helpers.ForumDAOHelper
 import ru.mail.park.databases.models.Forum
+import ru.mail.park.databases.models.Thread
 import java.sql.ResultSet
+import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.math.sin
 
 @Component
-class ForumDAO(private val userDAO: UserDAO, private val jdbcTemplate: JdbcTemplate) {
+class ForumDAO(private val jdbcTemplate: JdbcTemplate, private val threadDAO: ThreadDAO, private val userDAO: UserDAO) {
 
-    public var forumsCount: AtomicInteger = countForums();
+    public var forumsCount: AtomicInteger = countForums()
 
     @Suppress("PropertyName")
     internal val FORUM_ROW_MAPPER = { res: ResultSet, _: Any ->
@@ -26,50 +27,95 @@ class ForumDAO(private val userDAO: UserDAO, private val jdbcTemplate: JdbcTempl
                 res.getInt("threads_count"),
                 res.getInt("posts_count"),
                 res.getInt("author_id")
-        );
+        )
     }
 
     private fun countForums(): AtomicInteger {
         return try {
-            val forumsCount = jdbcTemplate.queryForObject(ForumDAOHelper.COUNT_FORUMS_QUERY, Int::class.java);
-            AtomicInteger(forumsCount ?: 0);
+            val forumsCount = jdbcTemplate.queryForObject("SELECT count(*) FROM forums", Int::class.java)
+            AtomicInteger(forumsCount ?: 0)
         } catch (e: DataAccessException) {
-            AtomicInteger(0);
+            AtomicInteger(0)
+        }
+    }
+
+    fun getSlugFromDBBySlug(slug: String): String? {
+        return try {
+            jdbcTemplate.queryForObject(
+                    "SELECT slug FROM forums WHERE slug = ?::citext",
+                    arrayOf(slug),
+                    String::class.java
+            )
+        } catch (e: EmptyResultDataAccessException) {
+            throw NotFoundException("Forum with slug $slug not found")
         }
     }
 
     fun getIdBySlug(slug: String): Int? {
         return try {
-            val query = ForumDAOHelper.GET_FORUM_ID_BY_SLUG_QUERY;
-            jdbcTemplate.queryForObject(query, arrayOf(slug), Int::class.java);
+            jdbcTemplate.queryForObject(
+                    "SELECT id FROM forums WHERE slug = ?::citext",
+                    arrayOf(slug),
+                    Int::class.java
+            )
         } catch (e: EmptyResultDataAccessException) {
-            throw NotFoundException("Forum with slug $slug not found");
+            throw NotFoundException("Forum with slug $slug not found")
+        }
+    }
+
+    fun getSlugById(id: Int): String? {
+        return try {
+            jdbcTemplate.queryForObject(
+                    "SELECT slug FROM forums WHERE id = ?",
+                    arrayOf(id),
+                    String::class.java
+            )
+        } catch (e: EmptyResultDataAccessException) {
+            throw NotFoundException("Forum with id $id not found")
         }
     }
 
     fun create(forumRequest: ForumsController.ForumRequest): Forum? {
-        val authorId = userDAO.getIdByNickName(forumRequest.user);
-        val query = ForumDAOHelper.CREATE_FORUM_QUERY;
+        val authorId = userDAO.getIdByNickName(forumRequest.user)
         val forum = jdbcTemplate.queryForObject(
-                query,
+                "INSERT INTO forums (title, slug, author_id) " +
+                        "VALUES (?, ?, ?) RETURNING id, title, slug, threads_count, posts_count, author_id",
                 arrayOf(forumRequest.title, forumRequest.slug, authorId),
                 FORUM_ROW_MAPPER
-        );
+        )
+        forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId!!)
+        forumsCount.incrementAndGet()
+        return forum
+    }
 
-        forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId!!);
-        forumsCount.incrementAndGet();
-        return forum;
+    fun createRelatedThread(forumSlug: String, threadRequest: ForumsController.ThreadRequest): Thread? {
+        val thread = Thread(threadRequest.authorNickname, threadRequest.message, threadRequest.title)
+        thread.createdAt = threadRequest.createdAt
+        thread.forumId = getIdBySlug(forumSlug)
+        thread.slug = threadRequest.slug
+
+        val created = threadDAO.create(thread)
+        created?.forumSlug = getSlugById(created?.forumId!!)
+        return created
     }
 
     fun getBySlug(slug: String): Forum? {
         return try {
-            val query = ForumDAOHelper.GET_FORUM_BY_SLUG_QUERY;
-            val forum = jdbcTemplate.queryForObject(query, arrayOf(slug), FORUM_ROW_MAPPER);
-
-            forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId!!);
-            forum;
+            val forum = jdbcTemplate.queryForObject(
+                    "SELECT id, title, slug, threads_count, posts_count, author_id " +
+                            "FROM forums WHERE slug = ?::citext",
+                    arrayOf(slug),
+                    FORUM_ROW_MAPPER
+            )
+            forum?.authorNickname = userDAO.getNickNameById(forum!!.authorId!!)
+            forum
         } catch (e: EmptyResultDataAccessException) {
-            throw NotFoundException("Forum with slug $slug not found");
+            throw NotFoundException("Forum with slug $slug not found")
         }
+    }
+
+    fun getRelatedThreads(slug: String, limit: Int?, since: String?, desc: Boolean?): List<Thread>? {
+        val forumId = getIdBySlug(slug)
+        return threadDAO.getByForumId(forumId!!, limit, since, desc)
     }
 }

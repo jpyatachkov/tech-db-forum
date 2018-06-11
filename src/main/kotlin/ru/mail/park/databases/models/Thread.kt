@@ -10,10 +10,13 @@ import java.util.*
 class Thread(authorNickname: String?, message: String, title: String) {
 
     @JsonIgnore
-    var id: Int? = null
+    var authorId: Int? = null
 
     @JsonIgnore
-    var authorId: Int? = null
+    var forumId: Int? = null
+
+    @get:JsonProperty(value = "id")
+    var id: Int? = null
 
     @get:JsonProperty(value = "author")
     @set:JsonProperty(value = "author")
@@ -27,23 +30,23 @@ class Thread(authorNickname: String?, message: String, title: String) {
     @set:JsonProperty
     var title: String = title
 
-    @get:JsonProperty(value = "created", access = JsonProperty.Access.READ_ONLY)
-    var createdAt: Date? = null
+    @get:JsonProperty(value = "created")
+    var createdAt: String? = null
 
-    @get:JsonProperty(value = "slug", access = JsonProperty.Access.READ_ONLY)
+    @get:JsonProperty(value = "slug")
     var slug: String? = null
 
-    @get:JsonProperty(value = "votes", access = JsonProperty.Access.READ_ONLY)
+    @get:JsonProperty(value = "votes")
     var votesCount: Int? = null
 
-    @get:JsonProperty(value = "forum", access = JsonProperty.Access.READ_ONLY)
-    var forumId: Int? = null
+    @get:JsonProperty(value = "forum")
+    var forumSlug: String? = null
 
     constructor(id: Int?,
                 authorId: Int?,
                 message: String,
                 title: String,
-                createdAt: Date?,
+                createdAt: String?,
                 slug: String?,
                 votesCount: Int?,
                 forumId: Int?): this(null, message, title) {

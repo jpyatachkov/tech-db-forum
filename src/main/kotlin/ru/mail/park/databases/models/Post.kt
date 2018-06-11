@@ -3,7 +3,9 @@ package ru.mail.park.databases.models
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
+import java.sql.Date
 import java.util.*
+import kotlin.collections.ArrayList
 
 @Suppress("MemberVisibilityCanBePrivate")
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -11,6 +13,9 @@ class Post(authorNickname: String?, message: String, parentId: Int) {
 
     @JsonIgnore
     var authorId: Int? = null
+
+    @JsonIgnore
+    var childrenIds: ArrayList<Int> = ArrayList<Int>();
 
     @get:JsonProperty
     @set:JsonProperty
@@ -31,7 +36,7 @@ class Post(authorNickname: String?, message: String, parentId: Int) {
     var isEdited: Boolean? = null
 
     @get:JsonProperty(value = "created")
-    var createdAt: Date? = null
+    var createdAt: java.sql.Date? = null
 
     @get:JsonProperty(value = "thread")
     var threadId: Int? = null
@@ -43,13 +48,14 @@ class Post(authorNickname: String?, message: String, parentId: Int) {
                 isEdited: Boolean,
                 message: String,
                 parentId: Int,
+                childrenIds: ArrayList<Int>,
                 createdAt: Date?,
                 authorId: Int?,
                 threadId: Int?,
-                forumId: Int?,
-                authorNickname: String?) : this(authorNickname, message, parentId) {
+                forumId: Int?) : this(null, message, parentId) {
         this.id = id
         this.isEdited = isEdited
+        this.childrenIds = childrenIds
         this.createdAt = createdAt
         this.authorId = authorId
         this.threadId = threadId
