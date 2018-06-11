@@ -48,7 +48,7 @@ class PostsController(private val forumDAO: ForumDAO,
         var thread: ru.mail.park.databases.models.Thread? = null
 
         if (related != null) {
-            if (related.contains("author")) {
+            if (related.contains("user")) {
                 author = userDAO.getById(post.authorId!!)
             }
 

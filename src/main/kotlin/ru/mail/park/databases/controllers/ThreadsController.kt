@@ -77,8 +77,8 @@ class ThreadsController(private val forumDAO: ForumDAO,
                 @param:JsonProperty(value = "created", required = false) val createdAt: String?)
 
     data class ThreadUpdateRequest @JsonCreator
-    constructor(@param:JsonProperty(value = "message") val message: String,
-                @param:JsonProperty(value = "title") val title: String,
+    constructor(@param:JsonProperty(value = "message", required = false) val message: String?,
+                @param:JsonProperty(value = "title", required = false) val title: String?,
                 @param:JsonProperty(value = "slug", required = false) var slugOrId: String?)
 
     data class ThreadVoteRequest

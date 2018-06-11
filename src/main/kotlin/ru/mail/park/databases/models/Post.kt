@@ -35,7 +35,7 @@ class Post(authorNickname: String?, message: String, parentId: Int, createdAt: S
     @get:JsonProperty
     var id: Int? = null
 
-    @get:JsonProperty
+    @get:JsonProperty(value = "isEdited")
     var isEdited: Boolean = false
 
     @get:JsonProperty(value = "created")

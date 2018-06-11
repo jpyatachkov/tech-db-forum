@@ -202,8 +202,8 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
             val created = try {
                 jdbcTemplate.queryForObject(
                         "UPDATE threads " +
-                                "SET message = ?, " +
-                                "title = ? " +
+                                "SET message = coalesce(?, message), " +
+                                "title = coalesce(?, title) " +
                                 "WHERE id = ? " +
                                 "RETURNING id, title, slug, message, votes, created_at, forum_id, author_id",
                         arrayOf(
@@ -216,8 +216,8 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
             } catch (e: NumberFormatException) {
                 jdbcTemplate.queryForObject(
                         "UPDATE threads " +
-                                "SET message = ?, " +
-                                "title = ? " +
+                                "SET message = coalesce(?, message), " +
+                                "title = coalesce(?, title) " +
                                 "WHERE slug = ?::citext " +
                                 "RETURNING id, title, slug, message, votes, created_at, forum_id, author_id",
                         arrayOf(

@@ -153,8 +153,8 @@ class PostDAO(private val dataSource: DataSource,
     fun update(postUpdateRequest: PostsController.PostUpdateRequest): Post? {
         return try {
             val post = jdbcTemplate.queryForObject(
-                    "UPDATE posts SET message = ? WHERE id = ? " +
-                            "RETURNING message, is_edited, created_at, parent_id, children_ids, author_id, forum_id, thread_id",
+                    "UPDATE posts SET message = ?, is_edited = true WHERE id = ? " +
+                            "RETURNING id, message, is_edited, created_at, parent_id, children_ids, author_id, forum_id, thread_id",
                     arrayOf(postUpdateRequest.message, postUpdateRequest.id),
                     POST_ROW_MAPPER
             )
