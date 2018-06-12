@@ -1,6 +1,7 @@
 package ru.mail.park.databases.dao
 
 import org.springframework.dao.DataAccessException
+import org.springframework.dao.DuplicateKeyException
 import org.springframework.dao.EmptyResultDataAccessException
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.stereotype.Component
@@ -173,6 +174,17 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
         )
 
         created?.authorNickname = userDAO.getNickNameById(created?.authorId!!)
+
+        try {
+            jdbcTemplate.queryForObject(
+                    "INSERT INTO forum_users(forum_slug, user_nickname) VALUES (?, ?) RETURNING forum_slug",
+                    arrayOf(thread.forumSlug, created.authorNickname),
+                    String::class.java
+            )
+        } catch (ignore: DuplicateKeyException) {
+
+        }
+
         threadsCount.incrementAndGet()
         return created
     }
@@ -194,7 +206,7 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
             posts.add(post)
         }
 
-        return postDAO.createMultiple(posts)
+        return postDAO.createMultiple(posts, forumSlug)
     }
 
     fun update(updateRequest: ThreadsController.ThreadUpdateRequest): Thread? {

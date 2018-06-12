@@ -220,12 +220,10 @@ class PostDAO(private val dataSource: DataSource,
         }
     }
 
-    fun createMultiple(posts: List<Post>): List<Post> {
+    fun createMultiple(posts: List<Post>, forumSlug: String?): List<Post> {
         try {
             for (post in posts) {
-                val authorId = userDAO.getIdByNickName(post.authorNickname!!)
-                post.authorId = authorId
-                post.authorNickname = userDAO.getNickNameById(authorId!!)
+                post.authorId = userDAO.getIdByNickName(post.authorNickname!!)
 
                 if (post.parentId != 0) {
                     val parent: Post?;
@@ -244,7 +242,7 @@ class PostDAO(private val dataSource: DataSource,
 
             val query = "INSERT INTO posts (id, message, is_edited, created_at, parent_id, author_id, forum_id, thread_id, materialized_path) " +
                     "VALUES (?, ?, ?::BOOLEAN, ?::TIMESTAMPTZ, ?, ?, ?, ?, array_append((SELECT materialized_path FROM posts WHERE id = ?), ?::BIGINT))";
-            var pst = connection.prepareStatement(query, Statement.NO_GENERATED_KEYS)
+            val pst = connection.prepareStatement(query, Statement.NO_GENERATED_KEYS)
 
             val createdAt = DateTimeHelper.toISODate()
 
@@ -282,6 +280,16 @@ class PostDAO(private val dataSource: DataSource,
                 pst.executeBatch()
 
                 for (post in posts) {
+                    try {
+                        jdbcTemplate.queryForObject(
+                                "INSERT INTO forum_users(forum_slug, user_nickname) VALUES (?, ?) RETURNING forum_slug",
+                                arrayOf(forumSlug, post.authorNickname),
+                                String::class.java
+                        )
+                    } catch (ignore: DuplicateKeyException) {
+
+                    }
+
                     postsCount.incrementAndGet()
                 }
             } finally {

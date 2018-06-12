@@ -13,7 +13,7 @@ class ServiceDAO(private val jdbcTemplate: JdbcTemplate,
                  private val userDAO: UserDAO) {
 
     fun doClear() {
-        jdbcTemplate.update("TRUNCATE TABLE forums, posts, threads, users, votes")
+        jdbcTemplate.update("TRUNCATE TABLE forums, posts, threads, users, votes, forum_users")
 
         forumDAO.forumsCount = AtomicInteger(0)
         postDAO.postsCount = AtomicInteger(0)

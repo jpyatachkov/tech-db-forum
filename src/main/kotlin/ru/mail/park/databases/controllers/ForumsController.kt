@@ -75,7 +75,14 @@ class ForumsController(private val forumDAO: ForumDAO, private val threadDAO: Th
         return ResponseEntity.status(HttpStatus.OK).body(threads)
     }
 
-    // TODO: Get related users
+    @GetMapping(path = ["{slug}/users"])
+    fun getRelatedUsers(@PathVariable slug: String,
+                        @RequestParam(value = "limit", required = false) limit: Int?,
+                        @RequestParam(value = "since", required = false) since: String?,
+                        @RequestParam(value = "desc", required = false) desc: Boolean?): ResponseEntity<*> {
+        val correctSlug = forumDAO.getSlugFromDBBySlug(slug)
+        return ResponseEntity.status(HttpStatus.OK).body(userDAO.getByForumId(correctSlug!!, limit, since, desc))
+    }
 
     data class ForumRequest @JsonCreator
     constructor(@param:JsonProperty(value = "slug") val slug: String,

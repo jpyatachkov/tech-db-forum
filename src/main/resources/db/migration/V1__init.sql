@@ -2,7 +2,7 @@ CREATE EXTENSION IF NOT EXISTS citext;
 
 CREATE TABLE users (
   id        BIGSERIAL PRIMARY KEY,
-  nickname  CITEXT UNIQUE,
+  nickname  CITEXT COLLATE "C" UNIQUE,
   email     CITEXT UNIQUE,
   full_name TEXT NOT NULL,
   about     TEXT NOT NULL

@@ -97,6 +97,60 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
         }
     }
 
+    fun getByForumId(slug: String, limit: Int?, since: String?, desc: Boolean?): List<User>? {
+        return try {
+            val result: List<User>?
+
+            if (since != null) {
+                result = if (desc == true) {
+                    jdbcTemplate.query(
+                            "SELECT id, nickname, email, full_name, about FROM users u " +
+                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
+                                    "ON u.nickname = fu.user_nickname::citext " +
+                                    "WHERE u.nickname < ?::citext " +
+                                    "ORDER BY u.nickname DESC LIMIT ?",
+                            arrayOf(slug, since, limit),
+                            USER_ROW_MAPPER
+                    )
+                } else {
+                    jdbcTemplate.query(
+                            "SELECT id, nickname, email, full_name, about FROM users u " +
+                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
+                                    "ON u.nickname = fu.user_nickname::citext " +
+                                    "WHERE u.nickname > ?::citext " +
+                                    "ORDER BY u.nickname LIMIT ?",
+                            arrayOf(slug, since, limit),
+                            USER_ROW_MAPPER
+                    )
+                }
+            } else {
+                result = if (desc == true) {
+                    jdbcTemplate.query(
+                            "SELECT id, nickname, email, full_name, about FROM users u " +
+                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
+                                    "ON u.nickname = fu.user_nickname::citext " +
+                                    "ORDER BY u.nickname DESC LIMIT ?",
+                            arrayOf(slug, limit),
+                            USER_ROW_MAPPER
+                    )
+                } else {
+                    jdbcTemplate.query(
+                            "SELECT id, nickname, email, full_name, about FROM users u " +
+                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
+                                    "ON u.nickname = fu.user_nickname::citext " +
+                                    "ORDER BY u.nickname LIMIT ?",
+                            arrayOf(slug, limit),
+                            USER_ROW_MAPPER
+                    )
+                }
+            }
+
+            result
+        } catch (e: EmptyResultDataAccessException) {
+            throw NotFoundException("")
+        }
+    }
+
     fun create(createRequest: UsersController.UserCreateRequest): User? {
         val user = jdbcTemplate.queryForObject(
                 "INSERT INTO users (nickname, email, full_name, about) " +

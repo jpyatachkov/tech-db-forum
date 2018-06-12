@@ -90,6 +90,7 @@ class ForumDAO(private val jdbcTemplate: JdbcTemplate, private val threadDAO: Th
     fun createRelatedThread(forumSlug: String, threadRequest: ThreadsController.ThreadCreateRequest): Thread? {
         val thread = Thread(threadRequest.authorNickname, threadRequest.message, threadRequest.title)
         thread.createdAt = threadRequest.createdAt
+        thread.forumSlug = getSlugFromDBBySlug(forumSlug)
         thread.forumId = getIdBySlug(forumSlug)
         thread.slug = threadRequest.slug
 
