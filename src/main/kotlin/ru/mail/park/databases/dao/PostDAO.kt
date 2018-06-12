@@ -109,13 +109,17 @@ class PostDAO(private val dataSource: DataSource,
             if (since != null) {
                 result = if (desc == true) {
                     jdbcTemplate.query(
-                            "SELECT * FROM posts WHERE thread_id = ? AND id < ? ORDER BY materialized_path DESC LIMIT ?",
+                            "SELECT * FROM posts WHERE thread_id = ? " +
+                                    "AND materialized_path < (SELECT materialized_path FROM posts WHERE id = ?) " +
+                                    "ORDER BY materialized_path DESC LIMIT ?",
                             arrayOf(threadId, since, limit),
                             POST_ROW_MAPPER
                     )
                 } else {
                     jdbcTemplate.query(
-                            "SELECT * FROM posts WHERE thread_id = ? AND id > ? ORDER BY materialized_path LIMIT ?",
+                            "SELECT * FROM posts WHERE thread_id = ? " +
+                                    "AND materialized_path > (SELECT materialized_path FROM posts WHERE id = ?) " +
+                                    "ORDER BY materialized_path LIMIT ?",
                             arrayOf(threadId, since, limit),
                             POST_ROW_MAPPER
                     )
@@ -238,78 +242,48 @@ class PostDAO(private val dataSource: DataSource,
                 }
             }
 
-            val query = "INSERT INTO posts (message, is_edited, created_at, parent_id, author_id, forum_id, thread_id) " +
-                    "VALUES (?, ?::BOOLEAN, ?::TIMESTAMPTZ, ?, ?, ?, ?)";
-            var pst = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)
+            val query = "INSERT INTO posts (id, message, is_edited, created_at, parent_id, author_id, forum_id, thread_id, materialized_path) " +
+                    "VALUES (?, ?, ?::BOOLEAN, ?::TIMESTAMPTZ, ?, ?, ?, ?, array_append((SELECT materialized_path FROM posts WHERE id = ?), ?::BIGINT))";
+            var pst = connection.prepareStatement(query, Statement.NO_GENERATED_KEYS)
 
             val createdAt = DateTimeHelper.toISODate()
 
             @Suppress("ConvertTryFinallyToUseCall")
             try {
                 for (post in posts) {
-                    pst.setString(1, post.message);
-                    pst.setBoolean(2, post.isEdited)
+                    val postId = jdbcTemplate.queryForObject(
+                            "SELECT nextval(pg_get_serial_sequence('posts', 'id'))",
+                            Int::class.java
+                    )
+
+                    post.id = postId
+
+                    pst.setInt(1, postId!!)
+                    pst.setString(2, post.message);
+                    pst.setBoolean(3, post.isEdited)
 
                     if (post.createdAt == null) {
-                        pst.setString(3, createdAt)
+                        pst.setString(4, createdAt)
                         post.createdAt = createdAt
                     } else {
-                        pst.setString(3, post.createdAt)
+                        pst.setString(4, post.createdAt)
                     }
 
-                    pst.setInt(4, post.parentId)
-                    pst.setInt(5, post.authorId!!)
-                    pst.setInt(6, post.forumId!!)
-                    pst.setInt(7, post.threadId!!)
+                    pst.setInt(5, post.parentId)
+                    pst.setInt(6, post.authorId!!)
+                    pst.setInt(7, post.forumId!!)
+                    pst.setInt(8, post.threadId!!)
+                    pst.setInt(9, post.parentId)
+                    pst.setInt(10, postId)
 
                     pst.addBatch()
                 }
 
                 pst.executeBatch()
 
-                val resultSet = pst.generatedKeys
                 for (post in posts) {
-                    if (resultSet.next()) {
-                        post.id = resultSet.getInt(1)
-
-                        if (post.parentId != 0) {
-                            val parent = getById(post.parentId)
-
-                            if (parent?.parentId == 0) {
-                                parent.materializedPath.clear()
-                                parent.materializedPath.add(parent.id!!)
-                            }
-
-                            post.materializedPath = parent?.materializedPath!!
-                            post.materializedPath.add(post.id!!)
-                        } else {
-                            post.materializedPath.clear()
-                            post.materializedPath.add(post.id!!)
-                        }
-                    }
-
                     postsCount.incrementAndGet()
                 }
-            } finally {
-                pst.close()
-            }
-
-            pst = connection.prepareStatement("UPDATE posts SET materialized_path = ? WHERE id = ?")
-
-            try {
-                for (post in posts) {
-                    val childrenArray = try {
-                        connection.createArrayOf("INT4", post.materializedPath.toArray())
-                    } catch (e: SQLException) {
-                        connection.createArrayOf("INT4", emptyArray())
-                    }
-
-                    pst.setArray(1, childrenArray)
-                    pst.setInt(2, post.id!!)
-                    pst.addBatch()
-                }
-
-                pst.executeBatch()
             } finally {
                 pst.close()
             }
