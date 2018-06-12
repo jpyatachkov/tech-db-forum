@@ -154,18 +154,20 @@ class PostDAO(private val dataSource: DataSource,
                 result = if (desc == true) {
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
-                                    "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 AND id < ? " +
+                                    "(SELECT id FROM posts WHERE parent_id = 0 AND thread_id = ? " +
+                                    "AND materialized_path[1] < (SELECT materialized_path[1] FROM posts WHERE id = ?) " +
                                     "ORDER BY id DESC LIMIT ?) root ON post.materialized_path[1] = root.id " +
-                                    "ORDER BY root.id DESC, post.id",
+                                    "ORDER BY root.id DESC, post.materialized_path",
                             arrayOf(threadId, since, limit),
                             POST_ROW_MAPPER
                     )
                 } else {
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
-                                    "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 AND id < ? " +
+                                    "(SELECT id FROM posts WHERE  parent_id = 0 AND thread_id = ? " +
+                                    "AND materialized_path[1] > (SELECT materialized_path[1] FROM posts WHERE id = ?) " +
                                     "ORDER BY id LIMIT ?) root ON post.materialized_path[1] = root.id " +
-                                    "ORDER BY root.id, post.id",
+                                    "ORDER BY root.id, post.materialized_path",
                             arrayOf(threadId, since, limit),
                             POST_ROW_MAPPER
                     )
@@ -176,7 +178,7 @@ class PostDAO(private val dataSource: DataSource,
                             "SELECT * from posts post JOIN " +
                                     "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
                                     "DESC LIMIT ?) root ON post.materialized_path[1] = root.id " +
-                                    "ORDER BY root.id DESC, post.id",
+                                    "ORDER BY root.id DESC, post.materialized_path",
                             arrayOf(threadId, limit),
                             POST_ROW_MAPPER
                     )
@@ -185,7 +187,7 @@ class PostDAO(private val dataSource: DataSource,
                             "SELECT * from posts post JOIN " +
                                     "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
                                     "LIMIT ?) root ON post.materialized_path[1] = root.id " +
-                                    "ORDER BY root.id, post.id",
+                                    "ORDER BY root.id, post.materialized_path",
                             arrayOf(threadId, limit),
                             POST_ROW_MAPPER
                     )
