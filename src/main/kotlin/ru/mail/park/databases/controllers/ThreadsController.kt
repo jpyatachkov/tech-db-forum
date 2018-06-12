@@ -96,46 +96,4 @@ class ThreadsController(private val forumDAO: ForumDAO,
     data class ThreadVoteRequest
     constructor(@param:JsonProperty(value = "nickname") val nickname: String,
                 @param:JsonProperty(value = "voice") val voice: Int)
-
-//    @GetMapping(path = arrayOf("/{thread_slug_or_id}/posts"), consumes = arrayOf(MediaType.ALL_VALUE))
-//    fun postsFromThread(@PathVariable thread_slug_or_id: String,
-//                        @RequestParam(required = false, value = "limit") limit: Int?,
-//                        @RequestParam(required = false, value = "since") since: Int?,
-//                        @RequestParam(required = false, value = "sort") sort: String,
-//                        @RequestParam(required = false, value = "desc") desc: Boolean?): ResponseEntity<*> {
-//        var thread: Thread
-//        val posts: List<Post>
-//        try {
-//            try {
-//                val threadId = Integer.parseInt(thread_slug_or_id)
-//                thread = threadDAO.getThreadById(threadId)
-//            } catch (e: NumberFormatException) {
-//                thread = threadDAO.getThreadBySlug(thread_slug_or_id)
-//            }
-//
-//            posts = postDAO.getPostsFromThread(thread, limit, since, sort, desc)
-//        } catch (e: Exceptions.NotFoundThread) {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body<Any>(MessageResponse("Can't find thread by slug: $thread_slug_or_id"))
-//        }
-//
-//        return ResponseEntity.ok<List<Post>>(posts)
-//    }
-//
-//    @PostMapping(path = arrayOf("/{thread_slug_or_id}/vote"), consumes = arrayOf(MediaType.ALL_VALUE))
-//    fun vote(@PathVariable thread_slug_or_id: String, @RequestBody request: VoteRequest): ResponseEntity<*> {
-//        var thread: Thread
-//        try {
-//            try {
-//                val threadId = Integer.parseInt(thread_slug_or_id)
-//                thread = voteDAO.vote(request.getVoice(), threadId, request.getNickname())
-//            } catch (e: NumberFormatException) {
-//                thread = voteDAO.vote(request.getVoice(), thread_slug_or_id, request.getNickname())
-//            }
-//
-//        } catch (e: DataIntegrityViolationException) {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).body<Any>(MessageResponse("Can't find thread or user: "))
-//        }
-//
-//        return ResponseEntity.ok(thread)
-//    }
 }
