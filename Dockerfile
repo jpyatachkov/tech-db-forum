@@ -4,9 +4,9 @@ ENV APP_ROOT "/var/www/databases"
 ENV POSTGRES_VERSION 9.6
 
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main" > /etc/apt/sources.list.d/pgdg.list
-RUN apt-get -y update && apt-get install -y wget
+RUN apt-get update -y && apt-get install -y wget
 RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-RUN apt-get update -y && apt-get install -y postgresql-$POSTGRES_VERSION openjdk-8-jdk-headless maven
+RUN apt-get update -y && apt-get install -y postgresql-$POSTGRES_VERSION openjdk-8-jdk-headless
 
 RUN mkdir -p $APP_ROOT
 COPY . $APP_ROOT
@@ -29,8 +29,12 @@ RUN echo "synchronous_commit = off" >> /etc/postgresql/$POSTGRES_VERSION/main/po
 
 USER root
 
+EXPOSE 5432
+
+VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
+
 WORKDIR $APP_ROOT
-RUN mvn package
+RUN ./mvnw clean package
 
 EXPOSE 5000
 
