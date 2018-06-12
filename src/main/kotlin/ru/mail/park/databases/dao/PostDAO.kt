@@ -95,6 +95,7 @@ class PostDAO(private val dataSource: DataSource,
                     )
                 }
             }
+
             result
         } catch (e: EmptyResultDataAccessException) {
             throw NotFoundException("No posts for thread with id $threadId")
@@ -134,6 +135,7 @@ class PostDAO(private val dataSource: DataSource,
                     )
                 }
             }
+
             result
         } catch (e: EmptyResultDataAccessException) {
             throw NotFoundException("No posts for thread with id $threadId")
@@ -141,7 +143,55 @@ class PostDAO(private val dataSource: DataSource,
     }
 
     private fun getParentTreeSort(threadId: Int, limit: Int?, since: Int?, desc: Boolean?): List<Post>? {
+        return try {
+            val result: List<Post>?
 
+            if (since != null) {
+                result = if (desc == true) {
+                    jdbcTemplate.query(
+                            "SELECT * from posts post JOIN " +
+                                    "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 AND id < ? " +
+                                    "ORDER BY id DESC LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "ORDER BY root.id DESC, post.id",
+                            arrayOf(threadId, since, limit),
+                            POST_ROW_MAPPER
+                    )
+                } else {
+                    jdbcTemplate.query(
+                            "SELECT * from posts post JOIN " +
+                                    "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 AND id < ? " +
+                                    "ORDER BY id LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "ORDER BY root.id, post.id",
+                            arrayOf(threadId, since, limit),
+                            POST_ROW_MAPPER
+                    )
+                }
+            } else {
+                result = if (desc == true) {
+                    jdbcTemplate.query(
+                            "SELECT * from posts post JOIN " +
+                                    "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
+                                    "DESC LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "ORDER BY root.id DESC, post.id",
+                            arrayOf(threadId, limit),
+                            POST_ROW_MAPPER
+                    )
+                } else {
+                    jdbcTemplate.query(
+                            "SELECT * from posts post JOIN " +
+                                    "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
+                                    "LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "ORDER BY root.id, post.id",
+                            arrayOf(threadId, limit),
+                            POST_ROW_MAPPER
+                    )
+                }
+            }
+
+            result
+        } catch (e: EmptyResultDataAccessException) {
+            throw NotFoundException("No posts for thread with id $threadId")
+        }
     }
 
     fun get(threadId: Int, limit: Int?, since: Int?, sortOrder: String?, desc: Boolean?): List<Post>? {
