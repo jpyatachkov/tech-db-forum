@@ -3,8 +3,6 @@ package ru.mail.park.databases.models
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonProperty
-import java.sql.Date
-import java.util.*
 import kotlin.collections.ArrayList
 
 @Suppress("MemberVisibilityCanBePrivate")
@@ -15,7 +13,7 @@ class Post(authorNickname: String?, message: String, parentId: Int, createdAt: S
     var authorId: Int? = null
 
     @JsonIgnore
-    var childrenIds: ArrayList<Int> = ArrayList<Int>();
+    var materializedPath: ArrayList<Int> = ArrayList<Int>();
 
     @JsonIgnore
     var forumId: Int? = null
@@ -51,14 +49,14 @@ class Post(authorNickname: String?, message: String, parentId: Int, createdAt: S
                 isEdited: Boolean,
                 message: String,
                 parentId: Int,
-                childrenIds: ArrayList<Int>,
+                materializedPath: ArrayList<Int>,
                 createdAt: String?,
                 authorId: Int?,
                 threadId: Int?,
                 forumId: Int?) : this(null, message, parentId, createdAt) {
         this.id = id
         this.isEdited = isEdited
-        this.childrenIds = childrenIds
+        this.materializedPath = materializedPath
         this.authorId = authorId
         this.threadId = threadId
         this.forumId = forumId

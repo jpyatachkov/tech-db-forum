@@ -3,19 +3,11 @@ package ru.mail.park.databases.controllers
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.springframework.http.MediaType
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RestController
-import ru.mail.park.databases.dao.ThreadDAO
 import ru.mail.park.databases.helpers.ApiHelper
 import org.springframework.http.ResponseEntity
 import org.springframework.http.HttpStatus
-import org.springframework.web.bind.annotation.RequestBody
-import org.springframework.web.bind.annotation.PathVariable
-import org.springframework.web.bind.annotation.PostMapping
-import org.springframework.web.bind.annotation.GetMapping
-import ru.mail.park.databases.dao.ForumDAO
-import ru.mail.park.databases.dao.UserDAO
-import ru.mail.park.databases.dao.VoteDAO
+import org.springframework.web.bind.annotation.*
+import ru.mail.park.databases.dao.*
 
 
 @RestController
@@ -25,6 +17,7 @@ import ru.mail.park.databases.dao.VoteDAO
         produces = [MediaType.APPLICATION_JSON_UTF8_VALUE]
 )
 class ThreadsController(private val forumDAO: ForumDAO,
+                        private val postDAO: PostDAO,
                         private val threadDAO: ThreadDAO,
                         private val userDAO: UserDAO,
                         private val voteDAO: VoteDAO) {
@@ -67,6 +60,25 @@ class ThreadsController(private val forumDAO: ForumDAO,
         thread?.authorNickname = userDAO.getNickNameById(thread?.authorId!!)
         thread.forumSlug = forumDAO.getSlugById(thread.forumId!!)
         return ResponseEntity.status(HttpStatus.OK).body(thread)
+    }
+
+    @GetMapping(path = ["{slugOrId}/posts"])
+    fun getPosts(@PathVariable slugOrId: String,
+                 @RequestParam(required = false, value = "limit") limit: Int?,
+                 @RequestParam(required = false, value = "since") since: Int?,
+                 @RequestParam(required = false, value = "sort") sortOrder: String?,
+                 @RequestParam(required = false, value = "desc") desc: Boolean?): ResponseEntity<*> {
+        val thread = threadDAO.getBySlugOrId(slugOrId)
+        val posts = postDAO.get(thread?.id!!, limit, since, sortOrder, desc)
+
+        if (posts != null) {
+            for (post in posts) {
+                post.authorNickname = userDAO.getNickNameById(post.authorId!!)
+                post.forumSlug = forumDAO.getSlugById(post.forumId!!)
+            }
+        }
+
+        return ResponseEntity.status(HttpStatus.OK).body(posts)
     }
 
     data class ThreadCreateRequest @JsonCreator

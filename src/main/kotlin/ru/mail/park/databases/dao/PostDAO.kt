@@ -15,13 +15,10 @@ import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Statement
-import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import javax.sql.DataSource
-import javax.xml.crypto.Data
 import kotlin.collections.ArrayList
-import kotlin.concurrent.thread
 
 @Component
 class PostDAO(private val dataSource: DataSource,
@@ -36,7 +33,7 @@ class PostDAO(private val dataSource: DataSource,
     internal val POST_ROW_MAPPER = { res: ResultSet, _: Any ->
         @Suppress("UNCHECKED_CAST")
         val children: ArrayList<Int> = try {
-            ArrayList(Arrays.asList(*res.getArray("children_ids").array as Array<Int>))
+            ArrayList(Arrays.asList(*res.getArray("materialized_path").array as Array<Int>))
         } catch (e: Exception) {
             ArrayList<Int>()
         }
@@ -65,10 +62,100 @@ class PostDAO(private val dataSource: DataSource,
         }
     }
 
+    private fun getFlatSort(threadId: Int, limit: Int?, since: Int?, desc: Boolean?): List<Post>? {
+        return try {
+            val result: List<Post>?;
+
+            if (since != null) {
+                result = if (desc == true) {
+                    jdbcTemplate.query(
+                            "SELECT * FROM posts WHERE thread_id = ? AND id < ? ORDER BY id DESC LIMIT ?",
+                            arrayOf(threadId, since, limit),
+                            POST_ROW_MAPPER
+                    )
+                } else {
+                    jdbcTemplate.query(
+                            "SELECT * FROM posts WHERE thread_id = ? AND id > ? ORDER BY id LIMIT ?",
+                            arrayOf(threadId, since, limit),
+                            POST_ROW_MAPPER
+                    )
+                }
+            } else {
+                result = if (desc == true) {
+                    jdbcTemplate.query(
+                            "SELECT * FROM posts WHERE thread_id = ? ORDER BY id DESC LIMIT ?",
+                            arrayOf(threadId, limit),
+                            POST_ROW_MAPPER
+                    )
+                } else {
+                    jdbcTemplate.query(
+                            "SELECT * FROM posts WHERE thread_id = ? ORDER BY id LIMIT ?",
+                            arrayOf(threadId, limit),
+                            POST_ROW_MAPPER
+                    )
+                }
+            }
+            result
+        } catch (e: EmptyResultDataAccessException) {
+            throw NotFoundException("No posts for thread with id $threadId")
+        }
+    }
+
+    private fun getTreeSort(threadId: Int, limit: Int?, since: Int?, desc: Boolean?): List<Post>? {
+        return try {
+            val result: List<Post>?
+
+            if (since != null) {
+                result = if (desc == true) {
+                    jdbcTemplate.query(
+                            "SELECT * FROM posts WHERE thread_id = ? AND id < ? ORDER BY materialized_path DESC LIMIT ?",
+                            arrayOf(threadId, since, limit),
+                            POST_ROW_MAPPER
+                    )
+                } else {
+                    jdbcTemplate.query(
+                            "SELECT * FROM posts WHERE thread_id = ? AND id > ? ORDER BY materialized_path LIMIT ?",
+                            arrayOf(threadId, since, limit),
+                            POST_ROW_MAPPER
+                    )
+                }
+            } else {
+                result = if (desc == true) {
+                    jdbcTemplate.query(
+                            "SELECT * FROM posts WHERE thread_id = ? ORDER BY materialized_path DESC LIMIT ?",
+                            arrayOf(threadId, limit),
+                            POST_ROW_MAPPER
+                    )
+                } else {
+                    jdbcTemplate.query(
+                            "SELECT * FROM posts WHERE thread_id = ? ORDER BY materialized_path LIMIT ?",
+                            arrayOf(threadId, limit),
+                            POST_ROW_MAPPER
+                    )
+                }
+            }
+            result
+        } catch (e: EmptyResultDataAccessException) {
+            throw NotFoundException("No posts for thread with id $threadId")
+        }
+    }
+
+    private fun getParentTreeSort(threadId: Int, limit: Int?, since: Int?, desc: Boolean?): List<Post>? {
+
+    }
+
+    fun get(threadId: Int, limit: Int?, since: Int?, sortOrder: String?, desc: Boolean?): List<Post>? {
+        return when (sortOrder) {
+            "tree" -> getTreeSort(threadId, limit, since, desc)
+            "parent_tree" -> getParentTreeSort(threadId, limit, since, desc)
+            else -> getFlatSort(threadId, limit, since, desc)
+        }
+    }
+
     fun getById(id: Int): Post? {
         return try {
             jdbcTemplate.queryForObject(
-                    "SELECT id, message, is_edited, created_at, parent_id, children_ids, author_id, forum_id, thread_id " +
+                    "SELECT id, message, is_edited, created_at, parent_id, materialized_path, author_id, forum_id, thread_id " +
                             "FROM posts " +
                             "WHERE id = ?",
                     arrayOf(id),
@@ -98,26 +185,18 @@ class PostDAO(private val dataSource: DataSource,
                     if (parent?.threadId != post.threadId) {
                         throw InvalidRelation("Incorrect parent for post")
                     }
-
-                    post.childrenIds = parent?.childrenIds!!
                 }
             }
 
-            val query = "INSERT INTO posts (message, is_edited, created_at, parent_id, children_ids, author_id, forum_id, thread_id) " +
-                    "VALUES (?, ?::BOOLEAN, ?::TIMESTAMPTZ, ?, ?, ?, ?, ?)";
-            val pst = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)
+            val query = "INSERT INTO posts (message, is_edited, created_at, parent_id, author_id, forum_id, thread_id) " +
+                    "VALUES (?, ?::BOOLEAN, ?::TIMESTAMPTZ, ?, ?, ?, ?)";
+            var pst = connection.prepareStatement(query, Statement.RETURN_GENERATED_KEYS)
 
             val createdAt = DateTimeHelper.toISODate()
 
             @Suppress("ConvertTryFinallyToUseCall")
             try {
                 for (post in posts) {
-                    val childrenArray = try {
-                        connection.createArrayOf("INT4", post.childrenIds.toArray())
-                    } catch (e: SQLException) {
-                        connection.createArrayOf("INT4", emptyArray())
-                    }
-
                     pst.setString(1, post.message);
                     pst.setBoolean(2, post.isEdited)
 
@@ -129,10 +208,9 @@ class PostDAO(private val dataSource: DataSource,
                     }
 
                     pst.setInt(4, post.parentId)
-                    pst.setArray(5, childrenArray)
-                    pst.setInt(6, post.authorId!!)
-                    pst.setInt(7, post.forumId!!)
-                    pst.setInt(8, post.threadId!!)
+                    pst.setInt(5, post.authorId!!)
+                    pst.setInt(6, post.forumId!!)
+                    pst.setInt(7, post.threadId!!)
 
                     pst.addBatch()
                 }
@@ -143,9 +221,45 @@ class PostDAO(private val dataSource: DataSource,
                 for (post in posts) {
                     if (resultSet.next()) {
                         post.id = resultSet.getInt(1)
+
+                        if (post.parentId != 0) {
+                            val parent = getById(post.parentId)
+
+                            if (parent?.parentId == 0) {
+                                parent.materializedPath.clear()
+                                parent.materializedPath.add(parent.id!!)
+                            }
+
+                            post.materializedPath = parent?.materializedPath!!
+                            post.materializedPath.add(post.id!!)
+                        } else {
+                            post.materializedPath.clear()
+                            post.materializedPath.add(post.id!!)
+                        }
                     }
+
                     postsCount.incrementAndGet()
                 }
+            } finally {
+                pst.close()
+            }
+
+            pst = connection.prepareStatement("UPDATE posts SET materialized_path = ? WHERE id = ?")
+
+            try {
+                for (post in posts) {
+                    val childrenArray = try {
+                        connection.createArrayOf("INT4", post.materializedPath.toArray())
+                    } catch (e: SQLException) {
+                        connection.createArrayOf("INT4", emptyArray())
+                    }
+
+                    pst.setArray(1, childrenArray)
+                    pst.setInt(2, post.id!!)
+                    pst.addBatch()
+                }
+
+                pst.executeBatch()
             } finally {
                 pst.close()
             }
@@ -165,7 +279,7 @@ class PostDAO(private val dataSource: DataSource,
                 } else {
                     jdbcTemplate.queryForObject(
                             "UPDATE posts SET message = ?, is_edited = true WHERE id = ? " +
-                                    "RETURNING id, message, is_edited, created_at, parent_id, children_ids, author_id, forum_id, thread_id",
+                                    "RETURNING id, message, is_edited, created_at, parent_id, materialized_path, author_id, forum_id, thread_id",
                             arrayOf(postUpdateRequest.message, postUpdateRequest.id),
                             POST_ROW_MAPPER
                     )
@@ -173,7 +287,7 @@ class PostDAO(private val dataSource: DataSource,
             } else {
                 jdbcTemplate.queryForObject(
                         "UPDATE posts SET message = coalesce(?, message) WHERE id = ? " +
-                                "RETURNING id, message, is_edited, created_at, parent_id, children_ids, author_id, forum_id, thread_id",
+                                "RETURNING id, message, is_edited, created_at, parent_id, materialized_path, author_id, forum_id, thread_id",
                         arrayOf(postUpdateRequest.message, postUpdateRequest.id),
                         POST_ROW_MAPPER
                 )

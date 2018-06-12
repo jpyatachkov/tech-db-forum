@@ -29,20 +29,20 @@ CREATE TABLE threads (
 );
 
 CREATE TABLE posts (
-  id           BIGSERIAL PRIMARY KEY,
-  message      TEXT    NOT NULL,
-  is_edited    BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at   TIMESTAMPTZ,
-  parent_id    BIGINT           DEFAULT 0,
-  children_ids BIGINT [],
-  author_id    BIGINT  NOT NULL,
-  forum_id     BIGINT  NOT NULL,
-  thread_id    BIGINT  NOT NULL
+  id                BIGSERIAL PRIMARY KEY,
+  message           TEXT    NOT NULL,
+  is_edited         BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at        TIMESTAMPTZ,
+  parent_id         BIGINT           DEFAULT 0,
+  materialized_path BIGINT [],
+  author_id         BIGINT  NOT NULL,
+  forum_id          BIGINT  NOT NULL,
+  thread_id         BIGINT  NOT NULL
 );
 
 CREATE TABLE votes (
-  thread_id BIGINT   NOT NULL REFERENCES threads (id),
-  voice     INT NOT NULL,
-  user_id   BIGINT   NOT NULL REFERENCES users (id),
+  thread_id BIGINT NOT NULL REFERENCES threads (id),
+  voice     INT    NOT NULL,
+  user_id   BIGINT NOT NULL REFERENCES users (id),
   UNIQUE (thread_id, user_id)
 );
