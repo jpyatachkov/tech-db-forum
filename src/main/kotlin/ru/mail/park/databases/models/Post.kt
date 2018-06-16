@@ -10,13 +10,7 @@ import kotlin.collections.ArrayList
 class Post(authorNickname: String?, message: String, parentId: Int, createdAt: String?) {
 
     @JsonIgnore
-    var authorId: Int? = null
-
-    @JsonIgnore
     var materializedPath: ArrayList<Int> = ArrayList<Int>();
-
-    @JsonIgnore
-    var forumId: Int? = null
 
     @get:JsonProperty
     @set:JsonProperty
@@ -51,15 +45,14 @@ class Post(authorNickname: String?, message: String, parentId: Int, createdAt: S
                 parentId: Int,
                 materializedPath: ArrayList<Int>,
                 createdAt: String?,
-                authorId: Int?,
+                authorNickname: String?,
                 threadId: Int?,
-                forumId: Int?) : this(null, message, parentId, createdAt) {
+                forumSlug: String?) : this(authorNickname, message, parentId, createdAt) {
         this.id = id
         this.isEdited = isEdited
         this.materializedPath = materializedPath
-        this.authorId = authorId
         this.threadId = threadId
-        this.forumId = forumId
+        this.forumSlug = forumSlug
     }
 
     override fun equals(other: Any?): Boolean {
@@ -68,7 +61,6 @@ class Post(authorNickname: String?, message: String, parentId: Int, createdAt: S
 
         other as Post
 
-        if (authorId != other.authorId) return false
         if (message != other.message) return false
         if (parentId != other.parentId) return false
         if (authorNickname != other.authorNickname) return false
@@ -76,13 +68,12 @@ class Post(authorNickname: String?, message: String, parentId: Int, createdAt: S
         if (isEdited != other.isEdited) return false
         if (createdAt != other.createdAt) return false
         if (threadId != other.threadId) return false
-        if (forumId != other.forumId) return false
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = authorId ?: 0
+        var result = 0
         result = 31 * result + message.hashCode()
         result = 31 * result + parentId
         result = 31 * result + (authorNickname?.hashCode() ?: 0)
@@ -90,7 +81,6 @@ class Post(authorNickname: String?, message: String, parentId: Int, createdAt: S
         result = 31 * result + isEdited.hashCode()
         result = 31 * result + (createdAt?.hashCode() ?: 0)
         result = 31 * result + (threadId ?: 0)
-        result = 31 * result + (forumId ?: 0)
         return result
     }
 }

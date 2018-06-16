@@ -9,12 +9,6 @@ import java.util.*
 @JsonInclude(JsonInclude.Include.NON_NULL)
 class Thread(authorNickname: String?, message: String, title: String) {
 
-    @JsonIgnore
-    var authorId: Int? = null
-
-    @JsonIgnore
-    var forumId: Int? = null
-
     @get:JsonProperty(value = "id")
     var id: Int? = null
 
@@ -43,19 +37,18 @@ class Thread(authorNickname: String?, message: String, title: String) {
     var forumSlug: String? = null
 
     constructor(id: Int?,
-                authorId: Int?,
+                authorNickname: String?,
                 message: String,
                 title: String,
                 createdAt: String?,
                 slug: String?,
                 votesCount: Int?,
-                forumId: Int?): this(null, message, title) {
+                forumSlug: String?): this(authorNickname, message, title) {
         this.id = id
-        this.authorId = authorId
         this.createdAt = createdAt
         this.slug = slug
         this.votesCount = votesCount
-        this.forumId = forumId
+        this.forumSlug = forumSlug
     }
 
     override fun equals(other: Any?): Boolean {
@@ -65,28 +58,24 @@ class Thread(authorNickname: String?, message: String, title: String) {
         other as Thread
 
         if (id != other.id) return false
-        if (authorId != other.authorId) return false
         if (authorNickname != other.authorNickname) return false
         if (message != other.message) return false
         if (title != other.title) return false
         if (createdAt != other.createdAt) return false
         if (slug != other.slug) return false
         if (votesCount != other.votesCount) return false
-        if (forumId != other.forumId) return false
 
         return true
     }
 
     override fun hashCode(): Int {
         var result = id ?: 0
-        result = 31 * result + (authorId ?: 0)
         result = 31 * result + (authorNickname?.hashCode() ?: 0)
         result = 31 * result + message.hashCode()
         result = 31 * result + title.hashCode()
         result = 31 * result + (createdAt?.hashCode() ?: 0)
         result = 31 * result + (slug?.hashCode() ?: 0)
         result = 31 * result + (votesCount ?: 0)
-        result = 31 * result + (forumId ?: 0)
         return result
     }
 }

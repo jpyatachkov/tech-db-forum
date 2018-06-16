@@ -8,12 +8,6 @@ import com.fasterxml.jackson.annotation.JsonProperty
 @JsonInclude(JsonInclude.Include.NON_NULL)
 class Forum(authorNickname: String?, slug: String, title: String) {
 
-    @JsonIgnore
-    var id: Int? = null
-
-    @JsonIgnore
-    var authorId: Int? = null
-
     @get:JsonProperty
     @set:JsonProperty
     var slug: String = slug
@@ -32,14 +26,11 @@ class Forum(authorNickname: String?, slug: String, title: String) {
     @get:JsonProperty(value = "posts", access = JsonProperty.Access.READ_ONLY)
     var postsCount: Int? = null
 
-    constructor(id: Int?,
-                slug: String,
+    constructor(slug: String,
                 title: String,
                 threadsCount: Int?,
                 postsCount: Int?,
-                authorId: Int?) : this(null, slug, title) {
-        this.id = id
-        this.authorId = authorId
+                authorNickname: String?) : this(authorNickname, slug, title) {
         this.threadsCount = threadsCount
         this.postsCount = postsCount
     }
@@ -50,8 +41,6 @@ class Forum(authorNickname: String?, slug: String, title: String) {
 
         other as Forum
 
-        if (id != other.id) return false
-        if (authorId != other.authorId) return false
         if (title != other.title) return false
         if (slug != other.slug) return false
         if (authorNickname != other.authorNickname) return false
@@ -62,8 +51,7 @@ class Forum(authorNickname: String?, slug: String, title: String) {
     }
 
     override fun hashCode(): Int {
-        var result = id ?: 0
-        result = 31 * result + (authorId ?: 0)
+        var result = 0
         result = 31 * result + title.hashCode()
         result = 31 * result + slug.hashCode()
         result = 31 * result + (authorNickname?.hashCode() ?: 0)

@@ -28,13 +28,13 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
 
         ru.mail.park.databases.models.Thread(
                 res.getInt("id"),
-                res.getInt("author_id"),
+                res.getString("author_id"),
                 res.getString("message"),
                 res.getString("title"),
                 if (createdAt != null) createdAt.toInstant().toString() else null,
                 res.getString("slug"),
                 res.getInt("votes"),
-                res.getInt("forum_id")
+                res.getString("forum_id")
         )
     }
 
@@ -50,9 +50,7 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
     fun getById(id: Int): Thread? {
         return try {
             jdbcTemplate.queryForObject(
-                    "SELECT id, title, slug, message, votes, created_at, forum_id, author_id " +
-                            "FROM threads " +
-                            "WHERE id = ?",
+                    "SELECT * FROM threads WHERE id = ?",
                     arrayOf(id),
                     THREAD_ROW_MAPPER
             )
@@ -65,17 +63,13 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
         return try {
             try {
                 jdbcTemplate.queryForObject(
-                        "SELECT id, title, slug, message, votes, created_at, forum_id, author_id " +
-                                "FROM threads " +
-                                "WHERE id = ?",
+                        "SELECT * FROM threads WHERE id = ?",
                         arrayOf(Integer.parseInt(slugOrId)),
                         THREAD_ROW_MAPPER
                 )
             } catch (e: NumberFormatException) {
                 jdbcTemplate.queryForObject(
-                        "SELECT id, title, slug, message, votes, created_at, forum_id, author_id " +
-                                "FROM threads " +
-                                "WHERE slug = ?::citext",
+                        "SELECT * FROM threads WHERE slug = ?::citext",
                         arrayOf(slugOrId),
                         THREAD_ROW_MAPPER
                 )
@@ -89,17 +83,13 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
         return try {
             try {
                 jdbcTemplate.queryForObject(
-                        "SELECT id " +
-                                "FROM threads " +
-                                "WHERE id = ?",
+                        "SELECT id FROM threads WHERE id = ?",
                         arrayOf(Integer.parseInt(slugOrId)),
                         Int::class.java
                 )
             } catch (e: NumberFormatException) {
                 jdbcTemplate.queryForObject(
-                        "SELECT id " +
-                                "FROM threads " +
-                                "WHERE slug = ?::citext",
+                        "SELECT id FROM threads WHERE slug = ?::citext",
                         arrayOf(slugOrId),
                         Int::class.java
                 )
@@ -109,7 +99,7 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
         }
     }
 
-    fun getByForumId(forumId: Int, limit: Int?, since: String?, desc: Boolean?): List<Thread>? {
+    fun getByForumId(forumSlug: String, limit: Int?, since: String?, desc: Boolean?): List<Thread>? {
         return try {
             val order: String
             val sign: String
@@ -124,30 +114,28 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
 
             if (since != null) {
                 jdbcTemplate.query(
-                        "SELECT id, title, slug, message, votes, created_at, forum_id, author_id " +
-                                "FROM threads " +
+                        "SELECT * FROM threads " +
                                 "WHERE forum_id = ? AND created_at" + sign + "?::TIMESTAMPTZ " +
                                 "ORDER BY created_at " + order + " LIMIT ?",
-                        arrayOf(forumId, since, limit),
+                        arrayOf(forumSlug, since, limit),
                         THREAD_ROW_MAPPER
                 )
             } else {
                 jdbcTemplate.query(
-                        "SELECT id, title, slug, message, votes, created_at, forum_id, author_id " +
-                                "FROM threads " +
+                        "SELECT * FROM threads " +
                                 "WHERE forum_id = ? " +
                                 "ORDER BY created_at " + order + " LIMIT ?",
-                        arrayOf(forumId, limit),
+                        arrayOf(forumSlug, limit),
                         THREAD_ROW_MAPPER
                 )
             }
         } catch (e: EmptyResultDataAccessException) {
-            throw NotFoundException("Threads from forum with id $forumId not found")
+            throw NotFoundException("Threads from forum with id $forumSlug not found")
         }
     }
 
     fun create(thread: Thread): Thread? {
-        thread.authorId = userDAO.getIdByNickName(thread.authorNickname!!)
+        val user = userDAO.getByNickName(thread.authorNickname!!)
 
         if (thread.createdAt == null) {
             thread.createdAt = DateTimeHelper.toISODate()
@@ -167,18 +155,17 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
                         thread.message,
                         thread.votesCount,
                         thread.createdAt,
-                        thread.forumId,
-                        thread.authorId
+                        thread.forumSlug,
+                        thread.authorNickname
                 ),
                 THREAD_ROW_MAPPER
         )
 
-        created?.authorNickname = userDAO.getNickNameById(created?.authorId!!)
-
         try {
             jdbcTemplate.queryForObject(
-                    "INSERT INTO forum_users(forum_slug, user_nickname) VALUES (?, ?) RETURNING forum_slug",
-                    arrayOf(thread.forumSlug, created.authorNickname),
+                    "INSERT INTO forum_users (forum_slug, nickname, email, full_name, about) " +
+                            "VALUES (?, ?, ?, ?, ?) RETURNING forum_slug",
+                    arrayOf(thread.forumSlug, user?.nickName, user?.email, user?.fullName, user?.about),
                     String::class.java
             )
         } catch (ignore: DuplicateKeyException) {
@@ -189,7 +176,7 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
         return created
     }
 
-    fun createRelatedPosts(forumSlug: String, thread: Thread, postsCreateRequest: List<PostsController.PostCreateRequest>): List<Post> {
+    fun createRelatedPosts(thread: Thread, postsCreateRequest: List<PostsController.PostCreateRequest>): List<Post> {
         val posts = ArrayList<Post>()
 
         for (postRequest in postsCreateRequest) {
@@ -199,19 +186,18 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
                     postRequest.parentId ?: 0,
                     postRequest.createdAt
             )
-            post.forumId = thread.forumId
+            post.forumSlug = thread.forumSlug
             post.threadId = thread.id
-            post.forumSlug = forumSlug
 
             posts.add(post)
         }
 
-        return postDAO.createMultiple(posts, forumSlug)
+        return postDAO.createMultiple(posts, thread.forumSlug)
     }
 
     fun update(updateRequest: ThreadsController.ThreadUpdateRequest): Thread? {
         return try {
-            val created = try {
+            try {
                 jdbcTemplate.queryForObject(
                         "UPDATE threads " +
                                 "SET message = coalesce(?, message), " +
@@ -240,9 +226,6 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
                         THREAD_ROW_MAPPER
                 )
             }
-
-            created?.authorNickname = userDAO.getNickNameById(created?.authorId!!)
-            created
         } catch (e: EmptyResultDataAccessException) {
             throw NotFoundException("Thread with slug or id ${updateRequest.slugOrId} not found")
         }

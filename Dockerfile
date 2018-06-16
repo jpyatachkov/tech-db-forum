@@ -23,8 +23,8 @@ RUN echo "synchronous_commit = off" >> /etc/postgresql/$POSTGRES_VERSION/main/po
     echo "logging_collector = 'off'" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
     echo "fsync = 'off'" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
     echo "max_wal_size = 1GB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
-    echo "shared_buffers = 128MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
-    echo "effective_cache_size = 256MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "shared_buffers = 64MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "effective_cache_size = 512MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
     echo "work_mem = 64MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf
 
 USER root

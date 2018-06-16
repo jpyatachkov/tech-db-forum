@@ -9,6 +9,7 @@ import ru.mail.park.databases.exceptions.NotFoundException
 import ru.mail.park.databases.models.User
 import java.sql.ResultSet
 import java.util.concurrent.atomic.AtomicInteger
+import javax.xml.crypto.Data
 
 @Component
 class UserDAO(private val jdbcTemplate: JdbcTemplate) {
@@ -18,7 +19,6 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
     @Suppress("PropertyName")
     internal val USER_ROW_MAPPER = { res: ResultSet, _: Any ->
         User(
-                res.getInt("id"),
                 res.getString("about"),
                 res.getString("nickname"),
                 res.getString("full_name"),
@@ -35,34 +35,22 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
         }
     }
 
-    fun getIdByNickName(nickName: String): Int? {
+    fun getDatabaseNicknamByNickname(nickName: String): String? {
         return try {
             jdbcTemplate.queryForObject(
-                    "SELECT id FROM users WHERE nickname = ?::citext",
+                    "SELECT nickname FROM users WHERE nickname = ?::citext",
                     arrayOf(nickName),
-                    Int::class.java
+                    String::class.java
             )
         } catch (e: EmptyResultDataAccessException) {
             throw NotFoundException("User with nickname $nickName not found")
         }
     }
 
-    fun getNickNameById(id: Int): String? {
-        return try {
-            jdbcTemplate.queryForObject(
-                    "SELECT nickname FROM users WHERE id = ?",
-                    arrayOf(id),
-                    String::class.java
-            )
-        } catch (e: EmptyResultDataAccessException) {
-            throw NotFoundException("User with id $id not found")
-        }
-    }
-
     fun getByNickName(nickName: String): User? {
         return try {
             jdbcTemplate.queryForObject(
-                    "SELECT id, nickname, email, full_name, about FROM users WHERE nickname = ?::citext",
+                    "SELECT * FROM users WHERE nickname = ?::citext",
                     arrayOf(nickName),
                     USER_ROW_MAPPER
             )
@@ -74,26 +62,12 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
     fun getByNickNameOrEmail(nickName: String, email: String): List<User?> {
         return try {
             jdbcTemplate.query(
-                    "SELECT id, nickname, email, full_name, about FROM users " +
-                            "WHERE nickname = ?::citext OR email = ?::citext",
+                    "SELECT * FROM users WHERE nickname = ?::citext OR email = ?::citext",
                     arrayOf(nickName, email),
                     USER_ROW_MAPPER
             )
         } catch (e: EmptyResultDataAccessException) {
             throw NotFoundException("User with nickname $nickName or email $email not found")
-        }
-    }
-
-    fun getById(id: Int): User? {
-        return try {
-            jdbcTemplate.queryForObject(
-                    "SELECT id, nickname, email, full_name, about FROM users " +
-                            "WHERE id = ?",
-                    arrayOf(id),
-                    USER_ROW_MAPPER
-            )
-        } catch (e: EmptyResultDataAccessException) {
-            throw NotFoundException("User with id $id not found")
         }
     }
 
@@ -104,21 +78,17 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
             if (since != null) {
                 result = if (desc == true) {
                     jdbcTemplate.query(
-                            "SELECT id, nickname, email, full_name, about FROM users u " +
-                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
-                                    "ON u.nickname = fu.user_nickname::citext " +
-                                    "WHERE u.nickname < ?::citext " +
-                                    "ORDER BY u.nickname DESC LIMIT ?",
+                            "SELECT * FROM forum_users " +
+                                    "WHERE forum_slug = ?::citext AND nickname < ?::citext " +
+                                    "ORDER BY nickname DESC LIMIT ?",
                             arrayOf(slug, since, limit),
                             USER_ROW_MAPPER
                     )
                 } else {
                     jdbcTemplate.query(
-                            "SELECT id, nickname, email, full_name, about FROM users u " +
-                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
-                                    "ON u.nickname = fu.user_nickname::citext " +
-                                    "WHERE u.nickname > ?::citext " +
-                                    "ORDER BY u.nickname LIMIT ?",
+                            "SELECT * FROM forum_users " +
+                                    "WHERE forum_slug = ?::citext AND nickname > ?::citext " +
+                                    "ORDER BY nickname LIMIT ?",
                             arrayOf(slug, since, limit),
                             USER_ROW_MAPPER
                     )
@@ -126,19 +96,17 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
             } else {
                 result = if (desc == true) {
                     jdbcTemplate.query(
-                            "SELECT id, nickname, email, full_name, about FROM users u " +
-                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
-                                    "ON u.nickname = fu.user_nickname::citext " +
-                                    "ORDER BY u.nickname DESC LIMIT ?",
+                            "SELECT * FROM forum_users " +
+                                    "WHERE forum_slug = ?::citext " +
+                                    "ORDER BY nickname DESC LIMIT ?",
                             arrayOf(slug, limit),
                             USER_ROW_MAPPER
                     )
                 } else {
                     jdbcTemplate.query(
-                            "SELECT id, nickname, email, full_name, about FROM users u " +
-                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
-                                    "ON u.nickname = fu.user_nickname::citext " +
-                                    "ORDER BY u.nickname LIMIT ?",
+                            "SELECT * FROM forum_users " +
+                                    "WHERE forum_slug = ?::citext " +
+                                    "ORDER BY nickname LIMIT ?",
                             arrayOf(slug, limit),
                             USER_ROW_MAPPER
                     )
@@ -155,7 +123,7 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
         val user = jdbcTemplate.queryForObject(
                 "INSERT INTO users (nickname, email, full_name, about) " +
                         "VALUES (?, ?, ?, ?) " +
-                        "RETURNING id, nickname, email, full_name, about",
+                        "RETURNING nickname, email, full_name, about",
                 arrayOf(createRequest.nickname, createRequest.email, createRequest.fullname, createRequest.about),
                 USER_ROW_MAPPER
         )
@@ -172,7 +140,7 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
                             "full_name = coalesce(?, full_name), " +
                             "about = coalesce(?, about) " +
                             "WHERE nickname = ?::citext " +
-                            "RETURNING id, nickname, email, full_name, about",
+                            "RETURNING nickname, email, full_name, about",
                     arrayOf(
                             updateRequest.nickname,
                             updateRequest.email,
