@@ -298,8 +298,7 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
                 pst.close()
             }
 
-            query = "INSERT INTO forum_users (forum_slug, nickname, email, full_name, about) " +
-                    "VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING"
+            query = "INSERT INTO forum_users (forum_slug, user_nickname) VALUES (?, ?) ON CONFLICT DO NOTHING"
             pst = connection.prepareStatement(query, Statement.NO_GENERATED_KEYS)
 
             @Suppress("ConvertTryFinallyToUseCall")
@@ -307,9 +306,6 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
                 for (user in users) {
                     pst.setString(1, forumSlug)
                     pst.setString(2, user.nickName)
-                    pst.setString(3, user.email)
-                    pst.setString(4, user.fullName)
-                    pst.setString(5, user.about)
 
                     pst.addBatch()
                 }

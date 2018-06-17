@@ -163,9 +163,8 @@ class ThreadDAO(private val jdbcTemplate: JdbcTemplate,
 
         try {
             jdbcTemplate.queryForObject(
-                    "INSERT INTO forum_users (forum_slug, nickname, email, full_name, about) " +
-                            "VALUES (?, ?, ?, ?, ?) RETURNING forum_slug",
-                    arrayOf(thread.forumSlug, user?.nickName, user?.email, user?.fullName, user?.about),
+                    "INSERT INTO forum_users (forum_slug, user_nickname) VALUES (?, ?) RETURNING forum_slug",
+                    arrayOf(thread.forumSlug, user?.nickName),
                     String::class.java
             )
         } catch (ignore: DuplicateKeyException) {

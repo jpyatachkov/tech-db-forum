@@ -15,13 +15,17 @@ import javax.sql.DataSource
 class VoteDAO(private val jdbcTemplate: JdbcTemplate) {
 
     fun voteForThread(threadId: Int, userNickname: String, voice: Int) {
-        try {
+        val oldVoice = try {
             jdbcTemplate.queryForObject(
-                    "UPDATE votes SET voice = ? WHERE thread_id = ? AND user_id = ? RETURNING voice",
-                    arrayOf(voice, threadId, userNickname),
+                    "SELECT voice FROM votes WHERE thread_id = ? AND user_id = ?",
+                    arrayOf(threadId, userNickname),
                     Int::class.java
             )
         } catch (e: EmptyResultDataAccessException) {
+            0
+        }
+
+        if (oldVoice == 0) {
             try {
                 jdbcTemplate.queryForObject(
                         "INSERT INTO votes (thread_id, voice, user_id) VALUES (?, ?, ?) RETURNING voice",
@@ -31,13 +35,18 @@ class VoteDAO(private val jdbcTemplate: JdbcTemplate) {
             } catch (e: DataIntegrityViolationException) {
                 throw NotFoundException("User with nickname $userNickname not found")
             }
-        } finally {
-            // TODO: Fix
+        } else {
             jdbcTemplate.queryForObject(
-                    "UPDATE threads SET votes = (SELECT sum(voice) FROM votes WHERE thread_id = ?) WHERE id = ? RETURNING id",
-                    arrayOf(threadId, threadId),
+                    "UPDATE votes SET voice = ? WHERE thread_id = ? AND user_id = ? RETURNING voice",
+                    arrayOf(voice, threadId, userNickname),
                     Int::class.java
             )
         }
+
+        jdbcTemplate.queryForObject(
+                "UPDATE threads SET votes = votes + (?) WHERE id = ? RETURNING id",
+                arrayOf(voice - oldVoice, threadId),
+                Int::class.java
+        )
     }
 }

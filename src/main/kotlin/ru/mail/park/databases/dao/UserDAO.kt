@@ -78,17 +78,19 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
             if (since != null) {
                 result = if (desc == true) {
                     jdbcTemplate.query(
-                            "SELECT * FROM forum_users " +
-                                    "WHERE forum_slug = ?::citext AND nickname < ?::citext " +
-                                    "ORDER BY nickname DESC LIMIT ?",
+                            "SELECT nickname, email, full_name, about FROM users u " +
+                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext AND user_nickname < ?::citext) fu " +
+                                    "ON u.nickname = fu.user_nickname::citext " +
+                                    "ORDER BY u.nickname DESC LIMIT ?",
                             arrayOf(slug, since, limit),
                             USER_ROW_MAPPER
                     )
                 } else {
                     jdbcTemplate.query(
-                            "SELECT * FROM forum_users " +
-                                    "WHERE forum_slug = ?::citext AND nickname > ?::citext " +
-                                    "ORDER BY nickname LIMIT ?",
+                            "SELECT nickname, email, full_name, about FROM users u " +
+                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext and user_nickname > ?::citext) fu " +
+                                    "ON u.nickname = fu.user_nickname::citext " +
+                                    "ORDER BY u.nickname LIMIT ?",
                             arrayOf(slug, since, limit),
                             USER_ROW_MAPPER
                     )
@@ -96,17 +98,19 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
             } else {
                 result = if (desc == true) {
                     jdbcTemplate.query(
-                            "SELECT * FROM forum_users " +
-                                    "WHERE forum_slug = ?::citext " +
-                                    "ORDER BY nickname DESC LIMIT ?",
+                            "SELECT nickname, email, full_name, about FROM users u " +
+                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
+                                    "ON u.nickname = fu.user_nickname::citext " +
+                                    "ORDER BY u.nickname DESC LIMIT ?",
                             arrayOf(slug, limit),
                             USER_ROW_MAPPER
                     )
                 } else {
                     jdbcTemplate.query(
-                            "SELECT * FROM forum_users " +
-                                    "WHERE forum_slug = ?::citext " +
-                                    "ORDER BY nickname LIMIT ?",
+                            "SELECT nickname, email, full_name, about FROM users u " +
+                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
+                                    "ON u.nickname = fu.user_nickname::citext " +
+                                    "ORDER BY u.nickname LIMIT ?",
                             arrayOf(slug, limit),
                             USER_ROW_MAPPER
                     )
@@ -135,14 +139,12 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
         return try {
             jdbcTemplate.queryForObject(
                     "UPDATE users " +
-                            "SET nickname = coalesce(?, nickname), " +
-                            "email = coalesce(?, email), " +
+                            "SET email = coalesce(?, email), " +
                             "full_name = coalesce(?, full_name), " +
                             "about = coalesce(?, about) " +
                             "WHERE nickname = ?::citext " +
                             "RETURNING nickname, email, full_name, about",
                     arrayOf(
-                            updateRequest.nickname,
                             updateRequest.email,
                             updateRequest.fullname,
                             updateRequest.about,

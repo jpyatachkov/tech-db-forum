@@ -34,13 +34,13 @@ CREATE TABLE posts (
   root_id           INT     NOT NULL DEFAULT 0,
   parent_id         INT              DEFAULT 0,
   materialized_path INT [],
-  author_id         CITEXT  NOT NULL REFERENCES users (nickname),
-  forum_id          CITEXT  NOT NULL REFERENCES forums (slug),
-  thread_id         INT     NOT NULL REFERENCES threads (id)
+  author_id         CITEXT  NOT NULL,
+  forum_id          CITEXT  NOT NULL,
+  thread_id         INT     NOT NULL
 );
 
 CREATE TABLE votes (
-  thread_id INT    NOT NULL REFERENCES threads (id),
+  thread_id INT    NOT NULL,
   voice     INT    NOT NULL,
   user_id   CITEXT NOT NULL REFERENCES users (nickname),
   UNIQUE (thread_id, user_id)
