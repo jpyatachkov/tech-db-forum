@@ -158,8 +158,8 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
                                     "(SELECT id FROM posts WHERE parent_id = 0 AND thread_id = ? " +
-                                    "AND materialized_path[1] < (SELECT materialized_path[1] FROM posts WHERE id = ?) " +
-                                    "ORDER BY id DESC LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "AND root_id < (SELECT root_id FROM posts WHERE id = ?) " +
+                                    "ORDER BY id DESC LIMIT ?) root ON post.root_id = root.id " +
                                     "ORDER BY root.id DESC, post.materialized_path",
                             arrayOf(threadId, since, limit),
                             POST_ROW_MAPPER
@@ -167,9 +167,9 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
                 } else {
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
-                                    "(SELECT id FROM posts WHERE  parent_id = 0 AND thread_id = ? " +
-                                    "AND materialized_path[1] > (SELECT materialized_path[1] FROM posts WHERE id = ?) " +
-                                    "ORDER BY id LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "(SELECT id FROM posts WHERE parent_id = 0 AND thread_id = ? " +
+                                    "AND root_id > (SELECT root_id FROM posts WHERE id = ?) " +
+                                    "ORDER BY id LIMIT ?) root ON post.root_id = root.id " +
                                     "ORDER BY root.id, post.materialized_path",
                             arrayOf(threadId, since, limit),
                             POST_ROW_MAPPER
@@ -180,7 +180,7 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
                                     "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
-                                    "DESC LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "DESC LIMIT ?) root ON post.root_id = root.id " +
                                     "ORDER BY root.id DESC, post.materialized_path",
                             arrayOf(threadId, limit),
                             POST_ROW_MAPPER
@@ -189,7 +189,7 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
                                     "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
-                                    "LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "LIMIT ?) root ON post.root_id = root.id " +
                                     "ORDER BY root.id, post.materialized_path",
                             arrayOf(threadId, limit),
                             POST_ROW_MAPPER
@@ -250,8 +250,9 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
                 }
             }
 
-            var query = "INSERT INTO posts (id, message, is_edited, created_at, parent_id, author_id, forum_id, thread_id, materialized_path) " +
-                    "VALUES (?, ?, ?::BOOLEAN, ?::TIMESTAMPTZ, ?, ?, ?, ?, array_append((SELECT materialized_path FROM posts WHERE id = ?), ?::INT))";
+            var query = "WITH path AS (SELECT materialized_path FROM posts WHERE id = ?) " +
+                    "INSERT INTO posts (id, message, is_edited, created_at, parent_id, author_id, forum_id, thread_id, materialized_path, root_id) " +
+                    "VALUES (?, ?, ?::BOOLEAN, ?::TIMESTAMPTZ, ?, ?, ?, ?, array_append((SELECT materialized_path FROM path), ?::INT), coalesce((SELECT materialized_path[1] FROM path), ?))";
             var pst = connection.prepareStatement(query, Statement.NO_GENERATED_KEYS)
 
             val createdAt = DateTimeHelper.toISODate()
@@ -266,23 +267,24 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
 
                     post.id = postId
 
-                    pst.setInt(1, postId!!)
-                    pst.setString(2, post.message);
-                    pst.setBoolean(3, post.isEdited)
+                    pst.setInt(1, post.parentId)
+                    pst.setInt(2, postId!!)
+                    pst.setString(3, post.message);
+                    pst.setBoolean(4, post.isEdited)
 
                     if (post.createdAt == null) {
-                        pst.setString(4, createdAt)
+                        pst.setString(5, createdAt)
                         post.createdAt = createdAt
                     } else {
-                        pst.setString(4, post.createdAt)
+                        pst.setString(5, post.createdAt)
                     }
 
-                    pst.setInt(5, post.parentId)
-                    pst.setString(6, post.authorNickname!!)
-                    pst.setString(7, post.forumSlug!!)
-                    pst.setInt(8, post.threadId!!)
-                    pst.setInt(9, post.parentId)
+                    pst.setInt(6, post.parentId)
+                    pst.setString(7, post.authorNickname!!)
+                    pst.setString(8, post.forumSlug!!)
+                    pst.setInt(9, post.threadId!!)
                     pst.setInt(10, postId)
+                    pst.setInt(11, postId)
 
                     pst.addBatch()
                 }
