@@ -25,17 +25,14 @@ class ThreadsController(private val forumDAO: ForumDAO,
     @PostMapping(path = ["{slugOrId}/create"])
     fun createPosts(@PathVariable slugOrId: String,
                     @RequestBody createRequestBody: List<PostsController.PostCreateRequest>): ResponseEntity<*> {
-        val thread = threadDAO.getBySlugOrId(slugOrId)
-        val forumSlug = forumDAO.getSlugById(thread?.forumId!!)
-        val posts = threadDAO.createRelatedPosts(forumSlug!!, thread, createRequestBody)
+        val thread = threadDAO.getBySlugOrId(slugOrId)!!
+        val posts = threadDAO.createRelatedPosts(thread, createRequestBody)
         return ResponseEntity.status(HttpStatus.CREATED).body(posts)
     }
 
     @GetMapping(path = ["{slugOrId}/details"])
     fun getDetails(@PathVariable slugOrId: String): ResponseEntity<*> {
         val thread = threadDAO.getBySlugOrId(slugOrId)
-        thread?.authorNickname = userDAO.getNickNameById(thread?.authorId!!)
-        thread.forumSlug = forumDAO.getSlugById(thread.forumId!!)
         return ResponseEntity.status(HttpStatus.OK).body(thread)
     }
 
@@ -43,8 +40,6 @@ class ThreadsController(private val forumDAO: ForumDAO,
     fun update(@PathVariable slugOrId: String, @RequestBody updateRequest: ThreadUpdateRequest): ResponseEntity<*> {
         updateRequest.slugOrId = slugOrId
         val thread = threadDAO.update(updateRequest)
-        thread?.authorNickname = userDAO.getNickNameById(thread?.authorId!!)
-        thread.forumSlug = forumDAO.getSlugById(thread.forumId!!)
         return ResponseEntity.status(HttpStatus.OK).body(thread)
     }
 
@@ -52,13 +47,10 @@ class ThreadsController(private val forumDAO: ForumDAO,
     fun voteForThread(@PathVariable slugOrId: String,
                       @RequestBody threadVoteRequest: ThreadVoteRequest): ResponseEntity<*> {
         val threadId = threadDAO.getIdBySlugOrId(slugOrId)
-        val userId = userDAO.getIdByNickName(threadVoteRequest.nickname)
 
-        voteDAO.voteForThread(threadId!!, userId!!, threadVoteRequest.voice)
+        voteDAO.voteForThread(threadId!!, threadVoteRequest.nickname, threadVoteRequest.voice)
 
         val thread = threadDAO.getById(threadId)
-        thread?.authorNickname = userDAO.getNickNameById(thread?.authorId!!)
-        thread.forumSlug = forumDAO.getSlugById(thread.forumId!!)
         return ResponseEntity.status(HttpStatus.OK).body(thread)
     }
 
@@ -70,14 +62,6 @@ class ThreadsController(private val forumDAO: ForumDAO,
                  @RequestParam(required = false, value = "desc") desc: Boolean?): ResponseEntity<*> {
         val thread = threadDAO.getBySlugOrId(slugOrId)
         val posts = postDAO.get(thread?.id!!, limit, since, sortOrder, desc)
-
-        if (posts != null) {
-            for (post in posts) {
-                post.authorNickname = userDAO.getNickNameById(post.authorId!!)
-                post.forumSlug = forumDAO.getSlugById(post.forumId!!)
-            }
-        }
-
         return ResponseEntity.status(HttpStatus.OK).body(posts)
     }
 

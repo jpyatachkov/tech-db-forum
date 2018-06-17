@@ -21,7 +21,9 @@ import ru.mail.park.databases.models.Thread
         consumes = [MediaType.ALL_VALUE],
         produces = [MediaType.APPLICATION_JSON_UTF8_VALUE]
 )
-class ForumsController(private val forumDAO: ForumDAO, private val threadDAO: ThreadDAO, private val userDAO: UserDAO) {
+class ForumsController(private val forumDAO: ForumDAO,
+                       private val threadDAO: ThreadDAO,
+                       private val userDAO: UserDAO) {
 
     @PostMapping(path = ["create"])
     fun createForum(@RequestBody forumRequest: ForumRequest): ResponseEntity<*> {
@@ -44,8 +46,6 @@ class ForumsController(private val forumDAO: ForumDAO, private val threadDAO: Th
             ResponseEntity.status(HttpStatus.CREATED).body(thread)
         } catch (e: DuplicateKeyException) {
             thread = threadDAO.getBySlugOrId(threadRequest.slug!!)
-            thread?.authorNickname = userDAO.getNickNameById(thread?.authorId!!)
-            thread.forumSlug = forumDAO.getSlugById(thread.forumId!!)
             ResponseEntity.status(HttpStatus.CONFLICT).body(thread)
         }
     }
@@ -61,17 +61,8 @@ class ForumsController(private val forumDAO: ForumDAO, private val threadDAO: Th
                           @RequestParam(value = "limit", required = false) limit: Int?,
                           @RequestParam(value = "since", required = false) since: String?,
                           @RequestParam(value = "desc", required = false) desc: Boolean?): ResponseEntity<*> {
-        val threads = forumDAO.getRelatedThreads(slug, limit, since, desc)
-
-        val correctSlug = forumDAO.getSlugFromDBBySlug(slug)
-
-        if (threads != null) {
-            for (thread in threads) {
-                thread.forumSlug = correctSlug
-                thread.authorNickname = userDAO.getNickNameById(thread.authorId!!)
-            }
-        }
-
+        val correctSlug = forumDAO.getSlugFromDBBySlug(slug)!!
+        val threads = forumDAO.getRelatedThreads(correctSlug, limit, since, desc)
         return ResponseEntity.status(HttpStatus.OK).body(threads)
     }
 
@@ -80,8 +71,8 @@ class ForumsController(private val forumDAO: ForumDAO, private val threadDAO: Th
                         @RequestParam(value = "limit", required = false) limit: Int?,
                         @RequestParam(value = "since", required = false) since: String?,
                         @RequestParam(value = "desc", required = false) desc: Boolean?): ResponseEntity<*> {
-        val correctSlug = forumDAO.getSlugFromDBBySlug(slug)
-        return ResponseEntity.status(HttpStatus.OK).body(userDAO.getByForumId(correctSlug!!, limit, since, desc))
+        val correctSlug = forumDAO.getSlugFromDBBySlug(slug)!!
+        return ResponseEntity.status(HttpStatus.OK).body(userDAO.getByForumId(correctSlug, limit, since, desc))
     }
 
     data class ForumRequest @JsonCreator

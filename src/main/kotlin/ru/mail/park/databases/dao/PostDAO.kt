@@ -1,5 +1,6 @@
 package ru.mail.park.databases.dao
 
+import com.zaxxer.hikari.HikariDataSource
 import org.springframework.dao.DataAccessException
 import org.springframework.dao.DuplicateKeyException
 import org.springframework.dao.EmptyResultDataAccessException
@@ -11,6 +12,7 @@ import ru.mail.park.databases.exceptions.InvalidRelation
 import ru.mail.park.databases.exceptions.NotFoundException
 import ru.mail.park.databases.helpers.DateTimeHelper
 import ru.mail.park.databases.models.Post
+import ru.mail.park.databases.models.User
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLException
@@ -19,13 +21,14 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 import javax.sql.DataSource
 import kotlin.collections.ArrayList
+import kotlin.collections.HashSet
 
 @Component
-class PostDAO(private val dataSource: DataSource,
-              private val jdbcTemplate: JdbcTemplate,
+class PostDAO(private val jdbcTemplate: JdbcTemplate,
+              private val hikariDataSource: HikariDataSource,
               private val userDAO: UserDAO) {
 
-    private val connection: Connection = dataSource.connection
+    private val connection = hikariDataSource.getConnection()
 
     public var postsCount: AtomicInteger = countPosts()
 
@@ -47,9 +50,9 @@ class PostDAO(private val dataSource: DataSource,
                 res.getInt("parent_id"),
                 children,
                 if (createdAt != null) createdAt.toInstant().toString() else null,
-                res.getInt("author_id"),
+                res.getString("author_id"),
                 res.getInt("thread_id"),
-                res.getInt("forum_id")
+                res.getString("forum_id")
         )
     }
 
@@ -155,8 +158,8 @@ class PostDAO(private val dataSource: DataSource,
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
                                     "(SELECT id FROM posts WHERE parent_id = 0 AND thread_id = ? " +
-                                    "AND materialized_path[1] < (SELECT materialized_path[1] FROM posts WHERE id = ?) " +
-                                    "ORDER BY id DESC LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "AND root_id < (SELECT root_id FROM posts WHERE id = ?) " +
+                                    "ORDER BY id DESC LIMIT ?) root ON post.root_id = root.id " +
                                     "ORDER BY root.id DESC, post.materialized_path",
                             arrayOf(threadId, since, limit),
                             POST_ROW_MAPPER
@@ -164,9 +167,9 @@ class PostDAO(private val dataSource: DataSource,
                 } else {
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
-                                    "(SELECT id FROM posts WHERE  parent_id = 0 AND thread_id = ? " +
-                                    "AND materialized_path[1] > (SELECT materialized_path[1] FROM posts WHERE id = ?) " +
-                                    "ORDER BY id LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "(SELECT id FROM posts WHERE parent_id = 0 AND thread_id = ? " +
+                                    "AND root_id > (SELECT root_id FROM posts WHERE id = ?) " +
+                                    "ORDER BY id LIMIT ?) root ON post.root_id = root.id " +
                                     "ORDER BY root.id, post.materialized_path",
                             arrayOf(threadId, since, limit),
                             POST_ROW_MAPPER
@@ -177,7 +180,7 @@ class PostDAO(private val dataSource: DataSource,
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
                                     "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
-                                    "DESC LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "DESC LIMIT ?) root ON post.root_id = root.id " +
                                     "ORDER BY root.id DESC, post.materialized_path",
                             arrayOf(threadId, limit),
                             POST_ROW_MAPPER
@@ -186,7 +189,7 @@ class PostDAO(private val dataSource: DataSource,
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
                                     "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
-                                    "LIMIT ?) root ON post.materialized_path[1] = root.id " +
+                                    "LIMIT ?) root ON post.root_id = root.id " +
                                     "ORDER BY root.id, post.materialized_path",
                             arrayOf(threadId, limit),
                             POST_ROW_MAPPER
@@ -211,9 +214,7 @@ class PostDAO(private val dataSource: DataSource,
     fun getById(id: Int): Post? {
         return try {
             jdbcTemplate.queryForObject(
-                    "SELECT id, message, is_edited, created_at, parent_id, materialized_path, author_id, forum_id, thread_id " +
-                            "FROM posts " +
-                            "WHERE id = ?",
+                    "SELECT * FROM posts WHERE id = ?",
                     arrayOf(id),
                     POST_ROW_MAPPER
             )
@@ -224,8 +225,15 @@ class PostDAO(private val dataSource: DataSource,
 
     fun createMultiple(posts: List<Post>, forumSlug: String?): List<Post> {
         try {
+            var users = HashSet<User>()
+
             for (post in posts) {
-                post.authorId = userDAO.getIdByNickName(post.authorNickname!!)
+                val user = userDAO.getByNickName(post.authorNickname!!)
+
+                post.authorNickname = user?.nickName
+                post.forumSlug = forumSlug
+
+                users.add(user!!)
 
                 if (post.parentId != 0) {
                     val parent: Post?;
@@ -242,9 +250,10 @@ class PostDAO(private val dataSource: DataSource,
                 }
             }
 
-            val query = "INSERT INTO posts (id, message, is_edited, created_at, parent_id, author_id, forum_id, thread_id, materialized_path) " +
-                    "VALUES (?, ?, ?::BOOLEAN, ?::TIMESTAMPTZ, ?, ?, ?, ?, array_append((SELECT materialized_path FROM posts WHERE id = ?), ?::BIGINT))";
-            val pst = connection.prepareStatement(query, Statement.NO_GENERATED_KEYS)
+            var query = "WITH path AS (SELECT materialized_path FROM posts WHERE id = ?) " +
+                    "INSERT INTO posts (id, message, is_edited, created_at, parent_id, author_id, forum_id, thread_id, materialized_path, root_id) " +
+                    "VALUES (?, ?, ?::BOOLEAN, ?::TIMESTAMPTZ, ?, ?, ?, ?, array_append((SELECT materialized_path FROM path), ?::INT), coalesce((SELECT materialized_path[1] FROM path), ?))";
+            var pst = connection.prepareStatement(query, Statement.NO_GENERATED_KEYS)
 
             val createdAt = DateTimeHelper.toISODate()
 
@@ -258,23 +267,24 @@ class PostDAO(private val dataSource: DataSource,
 
                     post.id = postId
 
-                    pst.setInt(1, postId!!)
-                    pst.setString(2, post.message);
-                    pst.setBoolean(3, post.isEdited)
+                    pst.setInt(1, post.parentId)
+                    pst.setInt(2, postId!!)
+                    pst.setString(3, post.message);
+                    pst.setBoolean(4, post.isEdited)
 
                     if (post.createdAt == null) {
-                        pst.setString(4, createdAt)
+                        pst.setString(5, createdAt)
                         post.createdAt = createdAt
                     } else {
-                        pst.setString(4, post.createdAt)
+                        pst.setString(5, post.createdAt)
                     }
 
-                    pst.setInt(5, post.parentId)
-                    pst.setInt(6, post.authorId!!)
-                    pst.setInt(7, post.forumId!!)
-                    pst.setInt(8, post.threadId!!)
-                    pst.setInt(9, post.parentId)
+                    pst.setInt(6, post.parentId)
+                    pst.setString(7, post.authorNickname!!)
+                    pst.setString(8, post.forumSlug!!)
+                    pst.setInt(9, post.threadId!!)
                     pst.setInt(10, postId)
+                    pst.setInt(11, postId)
 
                     pst.addBatch()
                 }
@@ -282,18 +292,25 @@ class PostDAO(private val dataSource: DataSource,
                 pst.executeBatch()
 
                 for (post in posts) {
-                    try {
-                        jdbcTemplate.queryForObject(
-                                "INSERT INTO forum_users(forum_slug, user_nickname) VALUES (?, ?) RETURNING forum_slug",
-                                arrayOf(forumSlug, post.authorNickname),
-                                String::class.java
-                        )
-                    } catch (ignore: DuplicateKeyException) {
-
-                    }
-
                     postsCount.incrementAndGet()
                 }
+            } finally {
+                pst.close()
+            }
+
+            query = "INSERT INTO forum_users (forum_slug, user_nickname) VALUES (?, ?) ON CONFLICT DO NOTHING"
+            pst = connection.prepareStatement(query, Statement.NO_GENERATED_KEYS)
+
+            @Suppress("ConvertTryFinallyToUseCall")
+            try {
+                for (user in users) {
+                    pst.setString(1, forumSlug)
+                    pst.setString(2, user.nickName)
+
+                    pst.addBatch()
+                }
+
+                pst.executeBatch()
             } finally {
                 pst.close()
             }
@@ -306,7 +323,7 @@ class PostDAO(private val dataSource: DataSource,
 
     fun update(postUpdateRequest: PostsController.PostUpdateRequest): Post? {
         return try {
-            val post = if (postUpdateRequest.message != null) {
+            if (postUpdateRequest.message != null) {
                 val oldPost = getById(postUpdateRequest.id)
                 if (oldPost?.message == postUpdateRequest.message) {
                     oldPost
@@ -326,8 +343,6 @@ class PostDAO(private val dataSource: DataSource,
                         POST_ROW_MAPPER
                 )
             }
-            post?.authorNickname = userDAO.getNickNameById(post?.authorId!!)
-            post
         } catch (e: EmptyResultDataAccessException) {
             throw NotFoundException("Post with id ${postUpdateRequest.id} not found")
         }

@@ -32,7 +32,6 @@ class PostsController(private val forumDAO: ForumDAO,
     fun update(@PathVariable id: Int, @RequestBody postUpdateRequest: PostUpdateRequest): ResponseEntity<*> {
         postUpdateRequest.id = id
         val post = postDAO.update(postUpdateRequest)
-        post?.forumSlug = forumDAO.getSlugById(post?.forumId!!)
         return ResponseEntity.status(HttpStatus.OK).body(post)
     }
 
@@ -40,8 +39,6 @@ class PostsController(private val forumDAO: ForumDAO,
     fun getDetails(@PathVariable id: Int,
                    @RequestParam(required = false, value = "related") related: List<String>?): ResponseEntity<*> {
         val post: Post? = postDAO.getById(id)
-        post?.authorNickname = userDAO.getNickNameById(post?.authorId!!)
-        post.forumSlug = forumDAO.getSlugById(post.forumId!!)
 
         var author: User? = null
         var forum: Forum? = null
@@ -49,22 +46,19 @@ class PostsController(private val forumDAO: ForumDAO,
 
         if (related != null) {
             if (related.contains("user")) {
-                author = userDAO.getById(post.authorId!!)
+                author = userDAO.getByNickName(post?.authorNickname!!)
             }
 
             if (related.contains("forum")) {
-                forum = forumDAO.getBySlugWithCounters(post.forumSlug!!)
-                forum?.authorNickname = userDAO.getNickNameById(forum?.authorId!!)
+                forum = forumDAO.getBySlugWithCounters(post?.forumSlug!!)
             }
 
             if (related.contains("thread")) {
-                thread = threadDAO.getById(post.threadId!!)
-                thread?.authorNickname = userDAO.getNickNameById(thread?.authorId!!)
-                thread.forumSlug = forumDAO.getSlugById(thread.forumId!!)
+                thread = threadDAO.getById(post?.threadId!!)
             }
         }
 
-        return ResponseEntity.status(HttpStatus.OK).body(PostInfo(post, author, forum, thread))
+        return ResponseEntity.status(HttpStatus.OK).body(PostInfo(post!!, author, forum, thread))
     }
 
     data class PostCreateRequest @JsonCreator

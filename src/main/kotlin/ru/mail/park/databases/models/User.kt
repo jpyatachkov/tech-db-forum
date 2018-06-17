@@ -10,9 +10,6 @@ import javax.validation.constraints.NotNull
 @JsonInclude(JsonInclude.Include.NON_NULL)
 class User(fullName: String, email: String) {
 
-    @JsonIgnore
-    var id: Int? = null
-
     @get:JsonProperty(value = "about", required = false)
     @set:JsonProperty
     var about: String? = null
@@ -31,8 +28,7 @@ class User(fullName: String, email: String) {
     @set:JsonProperty("fullname")
     var fullName: String = fullName
 
-    constructor(id: Int?, about: String?, nickName: String?, fullName: String, email: String): this(fullName, email) {
-        this.id = id
+    constructor(about: String?, nickName: String?, fullName: String, email: String): this(fullName, email) {
         this.about = about
         this.nickName = nickName
     }

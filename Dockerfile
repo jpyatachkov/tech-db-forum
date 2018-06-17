@@ -20,12 +20,17 @@ RUN service postgresql start &&\
     service postgresql stop
 
 RUN echo "synchronous_commit = off" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
-    echo "logging_collector = 'off'" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
-    echo "fsync = 'off'" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
-    echo "max_wal_size = 1GB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
-    echo "shared_buffers = 128MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
-    echo "effective_cache_size = 256MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
-    echo "work_mem = 64MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf
+    echo "logging_collector = off" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "fsync = off" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "shared_buffers = 256MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "effective_cache_size = 512MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "work_mem = 16MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "maintenance_work_mem = 128MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "wal_buffers = 1MB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "min_wal_size = 1GB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "max_wal_size = 2GB" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "effective_io_concurrency = 300" >> /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf &&\
+    echo "checkpoint_completion_target = 0.7" >>  /etc/postgresql/$POSTGRES_VERSION/main/postgresql.conf
 
 USER root
 
@@ -38,4 +43,4 @@ RUN ./mvnw clean package
 
 EXPOSE 5000
 
-CMD service postgresql start &&  java -Xmx384M -Xms384M -jar $APP_ROOT/target/databases-0.0.1-SNAPSHOT.jar
+CMD service postgresql start &&  java -Xmx450M -Xms450M -jar $APP_ROOT/target/databases-0.0.1-SNAPSHOT.jar
