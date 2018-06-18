@@ -1,8 +1,8 @@
-CREATE INDEX users_nickname_email
-  ON users (nickname, email);
-
 CREATE INDEX forum_id_created_at_idx
   ON threads (forum_id, created_at);
+
+CREATE INDEX post_forum_id_idx
+  ON posts (forum_id);
 
 CREATE INDEX post_thread_id_id_idx
   ON posts (thread_id, id);

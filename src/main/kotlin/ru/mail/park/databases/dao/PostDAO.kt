@@ -179,7 +179,7 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
                 result = if (desc == true) {
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
-                                    "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
+                                    "(SELECT id FROM posts WHERE parent_id = 0 AND thread_id = ? ORDER BY id " +
                                     "DESC LIMIT ?) root ON post.root_id = root.id " +
                                     "ORDER BY root.id DESC, post.materialized_path",
                             arrayOf(threadId, limit),
@@ -188,7 +188,7 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
                 } else {
                     jdbcTemplate.query(
                             "SELECT * from posts post JOIN " +
-                                    "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
+                                    "(SELECT id FROM posts WHERE parent_id = 0 AND thread_id = ? ORDER BY id " +
                                     "LIMIT ?) root ON post.root_id = root.id " +
                                     "ORDER BY root.id, post.materialized_path",
                             arrayOf(threadId, limit),

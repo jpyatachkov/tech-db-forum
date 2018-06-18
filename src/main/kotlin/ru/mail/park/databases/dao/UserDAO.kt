@@ -79,7 +79,7 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
                 result = if (desc == true) {
                     jdbcTemplate.query(
                             "SELECT nickname, email, full_name, about FROM users u " +
-                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext AND user_nickname < ?::citext) fu " +
+                                    "JOIN (SELECT user_nickname FROM forum_users WHERE forum_slug = ?::citext AND user_nickname < ?::citext) fu " +
                                     "ON u.nickname = fu.user_nickname::citext " +
                                     "ORDER BY u.nickname DESC LIMIT ?",
                             arrayOf(slug, since, limit),
@@ -88,7 +88,7 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
                 } else {
                     jdbcTemplate.query(
                             "SELECT nickname, email, full_name, about FROM users u " +
-                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext and user_nickname > ?::citext) fu " +
+                                    "JOIN (SELECT user_nickname FROM forum_users WHERE forum_slug = ?::citext and user_nickname > ?::citext) fu " +
                                     "ON u.nickname = fu.user_nickname::citext " +
                                     "ORDER BY u.nickname LIMIT ?",
                             arrayOf(slug, since, limit),
@@ -99,7 +99,7 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
                 result = if (desc == true) {
                     jdbcTemplate.query(
                             "SELECT nickname, email, full_name, about FROM users u " +
-                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
+                                    "JOIN (SELECT user_nickname FROM forum_users WHERE forum_slug = ?::citext) fu " +
                                     "ON u.nickname = fu.user_nickname::citext " +
                                     "ORDER BY u.nickname DESC LIMIT ?",
                             arrayOf(slug, limit),
@@ -108,7 +108,7 @@ class UserDAO(private val jdbcTemplate: JdbcTemplate) {
                 } else {
                     jdbcTemplate.query(
                             "SELECT nickname, email, full_name, about FROM users u " +
-                                    "JOIN (SELECT * FROM forum_users WHERE forum_slug = ?::citext) fu " +
+                                    "JOIN (SELECT user_nickname FROM forum_users WHERE forum_slug = ?::citext) fu " +
                                     "ON u.nickname = fu.user_nickname::citext " +
                                     "ORDER BY u.nickname LIMIT ?",
                             arrayOf(slug, limit),
