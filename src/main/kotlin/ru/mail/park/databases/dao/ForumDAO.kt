@@ -69,7 +69,19 @@ class ForumDAO(private val jdbcTemplate: JdbcTemplate, private val threadDAO: Th
         thread.forumSlug = getSlugFromDBBySlug(forumSlug)
         thread.slug = threadRequest.slug
 
-        return threadDAO.create(thread)
+        val created = threadDAO.create(thread)
+
+        try {
+            jdbcTemplate.queryForObject(
+                    "UPDATE forums SET threads_count = threads_count + 1 WHERE slug = ?::citext RETURNING slug",
+                    arrayOf(forumSlug),
+                    String::class.java
+            )
+        } catch (e: EmptyResultDataAccessException) {
+
+        }
+
+        return created
     }
 
     fun getBySlug(slug: String): Forum? {

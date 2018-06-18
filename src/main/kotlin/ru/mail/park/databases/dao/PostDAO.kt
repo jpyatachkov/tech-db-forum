@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import javax.sql.DataSource
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
+import kotlin.concurrent.thread
 
 @Component
 class PostDAO(private val jdbcTemplate: JdbcTemplate,
@@ -156,42 +157,46 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
             if (since != null) {
                 result = if (desc == true) {
                     jdbcTemplate.query(
-                            "SELECT * from posts post JOIN " +
-                                    "(SELECT id FROM posts WHERE parent_id = 0 AND thread_id = ? " +
-                                    "AND root_id < (SELECT root_id FROM posts WHERE id = ?) " +
-                                    "ORDER BY id DESC LIMIT ?) root ON post.root_id = root.id " +
-                                    "ORDER BY root.id DESC, post.materialized_path",
-                            arrayOf(threadId, since, limit),
+                            "SELECT * FROM posts WHERE thread_id = ? " +
+                                    "AND root_id IN " +
+                                    "(SELECT DISTINCT root_id FROM posts WHERE thread_id = ? " +
+                                    "AND root_id < (SELECT root_id FROM posts WHERE id = ?) AND parent_id = 0 " +
+                                    "ORDER BY root_id DESC LIMIT ?) " +
+                                    "ORDER BY root_id DESC, materialized_path",
+                            arrayOf(threadId, threadId, since, limit),
                             POST_ROW_MAPPER
                     )
                 } else {
                     jdbcTemplate.query(
-                            "SELECT * from posts post JOIN " +
-                                    "(SELECT id FROM posts WHERE parent_id = 0 AND thread_id = ? " +
-                                    "AND root_id > (SELECT root_id FROM posts WHERE id = ?) " +
-                                    "ORDER BY id LIMIT ?) root ON post.root_id = root.id " +
-                                    "ORDER BY root.id, post.materialized_path",
-                            arrayOf(threadId, since, limit),
+                            "SELECT * FROM posts WHERE thread_id = ? " +
+                                    "AND root_id IN " +
+                                    "(SELECT DISTINCT root_id FROM posts WHERE thread_id = ? " +
+                                    "AND root_id > (SELECT root_id FROM posts WHERE id = ?) AND parent_id = 0 " +
+                                    "ORDER BY root_id LIMIT ?) " +
+                                    "ORDER BY root_id, materialized_path",
+                            arrayOf(threadId, threadId, since, limit),
                             POST_ROW_MAPPER
                     )
                 }
             } else {
                 result = if (desc == true) {
                     jdbcTemplate.query(
-                            "SELECT * from posts post JOIN " +
-                                    "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
-                                    "DESC LIMIT ?) root ON post.root_id = root.id " +
-                                    "ORDER BY root.id DESC, post.materialized_path",
-                            arrayOf(threadId, limit),
+                            "SELECT * FROM posts WHERE thread_id = ? " +
+                                    "AND root_id IN " +
+                                    "(SELECT DISTINCT root_id FROM posts WHERE thread_id = ? AND parent_id = 0 " +
+                                    "ORDER BY root_id DESC LIMIT ?) " +
+                                    "ORDER BY root_id DESC, materialized_path",
+                            arrayOf(threadId, threadId, limit),
                             POST_ROW_MAPPER
                     )
                 } else {
                     jdbcTemplate.query(
-                            "SELECT * from posts post JOIN " +
-                                    "(SELECT id FROM posts WHERE thread_id = ? AND parent_id = 0 ORDER BY id " +
-                                    "LIMIT ?) root ON post.root_id = root.id " +
-                                    "ORDER BY root.id, post.materialized_path",
-                            arrayOf(threadId, limit),
+                            "SELECT * FROM posts WHERE thread_id = ? " +
+                                    "AND root_id IN " +
+                                    "(SELECT DISTINCT root_id FROM posts WHERE thread_id = ? AND parent_id = 0 " +
+                                    "ORDER BY root_id LIMIT ?) " +
+                                    "ORDER BY root_id, materialized_path",
+                            arrayOf(threadId, threadId, limit),
                             POST_ROW_MAPPER
                     )
                 }
@@ -313,6 +318,16 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
                 pst.executeBatch()
             } finally {
                 pst.close()
+            }
+
+            try {
+                jdbcTemplate.queryForObject(
+                        "UPDATE forums SET posts_count = posts_count + (?) WHERE slug = ?::citext RETURNING slug",
+                        arrayOf(posts.size, forumSlug),
+                        String::class.java
+                )
+            } catch (e: EmptyResultDataAccessException) {
+
             }
 
             return posts

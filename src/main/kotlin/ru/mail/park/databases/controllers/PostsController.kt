@@ -50,7 +50,8 @@ class PostsController(private val forumDAO: ForumDAO,
             }
 
             if (related.contains("forum")) {
-                forum = forumDAO.getBySlugWithCounters(post?.forumSlug!!)
+                // TODO: 2
+                forum = forumDAO.getBySlug(post?.forumSlug!!)
             }
 
             if (related.contains("thread")) {
