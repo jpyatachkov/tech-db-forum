@@ -320,6 +320,16 @@ class PostDAO(private val jdbcTemplate: JdbcTemplate,
                 pst.close()
             }
 
+            try {
+                jdbcTemplate.queryForObject(
+                        "UPDATE forums SET posts_count = posts_count + (?) WHERE slug = ?::citext RETURNING slug",
+                        arrayOf(posts.size, forumSlug),
+                        String::class.java
+                )
+            } catch (e: EmptyResultDataAccessException) {
+
+            }
+
             return posts
         } catch (e: DuplicateKeyException) {
             throw ConflictException(e.message ?: "Key duplicates on post batch creation")
